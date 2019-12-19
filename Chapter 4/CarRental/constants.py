@@ -1,5 +1,12 @@
 PATH_SPRENRET_CSV = "C:/Temp/rlai-exercises/Chapter 4/data"
 
+EPSILON = 0.01
+GAMMA = 0.9
+THETA = 0.1
+
+DEFAULT_ACTION = 5
+DEFAULT_VALUE = 0.
+
 MIN_NUMBER_OF_CARS_LOC_1 = 0
 MIN_NUMBER_OF_CARS_LOC_2 = 0
 MAX_NUMBER_OF_CARS_LOC_1 = 20
@@ -34,6 +41,10 @@ DFCOL_SPRENRET_RETURNS_A = "returns_k_a"
 DFCOL_SPRENRET_RETURNS_B = "returns_k_b"
 DFCOL_SPRENRET_IS_VALID = "is_valid"
 DFCOL_SPRENRET_SNEXT = "s_k_plus_1"
+DFCOL_SPRENRET_PROB_RENTALS_A = "p_rentals_a"
+DFCOL_SPRENRET_PROB_RENTALS_B = "p_rentals_b"
+DFCOL_SPRENRET_PROB_RETURNS_A = "p_returns_a"
+DFCOL_SPRENRET_PROB_RETURNS_B = "p_returns_b"
 DFCOL_SPRENRET_PROBSRSA = "p_of_srsa" # p(s',r|s,a)
 DFCOL_SPRENRET_REWARD = "r_k_reward" # each sequence (s,a,s') results in a unique reward r
 DFCOL_SPRENRET_SNEXT_A = "s_k_plus_1_a"
@@ -50,3 +61,4 @@ DFCOL_PI_STATE = "s" # s
 DFCOL_PI_STATE_A = "s_a"
 DFCOL_PI_STATE_B = "s_b"
 DFCOL_PI_ACTION = "a" # a
+DFCOL_PI_PROB = "p_of_sa"

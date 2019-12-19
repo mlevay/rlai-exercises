@@ -35,16 +35,23 @@ def init_policy_iteration(pi_seq_nr=-1, v_seq_nr=-1):
         
         if pi_seq_nr == -1:
             # Create dataframe dfPi - init with default action = 5 (= 0 transfers)
-            mindex = pd.MultiIndex.from_product([all_states[:,-1]], names=[DFCOL_PI_STATE])
-            dfPi = pd.DataFrame(
-                {
-                    DFCOL_PI_ACTION: [5]*num_states
-                },
-                index = mindex)
-            print("initialized dataframe dfPi", datetime.now().strftime("%H:%M:%S"))
-
+            dfPi = dfSASP[[DFCOL_SASP_SORIG, DFCOL_SASP_ACTION]].copy()
+            dfPi.columns = [DFCOL_PI_STATE, DFCOL_PI_ACTION]
+            dfPi[DFCOL_PI_PROB] = [0.]*dfPi.shape[0]
+            
+            # create a dict of format {state:df_actions_and_probs}
+            groups = dict(list(dfPi.groupby(DFCOL_PI_STATE)))
+            for s in groups:
+                dfForState = groups[s]
+                num_actions = float(dfForState.shape[0])
+                prob_pref_action = 1. - EPSILON + (EPSILON/num_actions)
+                prob_other_action = EPSILON/num_actions
+                dfPi.loc[(dfPi[DFCOL_PI_STATE] == s) & (dfPi[DFCOL_PI_ACTION] == DEFAULT_ACTION), DFCOL_PI_PROB] = prob_pref_action
+                dfPi.loc[(dfPi[DFCOL_PI_STATE] == s) & (dfPi[DFCOL_PI_ACTION] != DEFAULT_ACTION), DFCOL_PI_PROB] = prob_other_action
+            
+            dfPi.set_index([DFCOL_PI_STATE, DFCOL_PI_ACTION], inplace=True)    
+            dfPi.sort_index(axis=0, inplace=True)
             dfPi.reset_index(inplace=True)
-            #dfPi.set_index(DFCOL_PI_STATE)
             print("(re)set index for dfPi", datetime.now().strftime("%H:%M:%S"))
 
         if v_seq_nr == -1:
@@ -52,7 +59,7 @@ def init_policy_iteration(pi_seq_nr=-1, v_seq_nr=-1):
             mindex = pd.MultiIndex.from_product([all_states[:,-1]], names=[DFCOL_V_STATE])
             dfV = pd.DataFrame(
                 {
-                    DFCOL_V_VALUE: [0.]*num_states
+                    DFCOL_V_VALUE: [DEFAULT_VALUE]*num_states
                 },
                 index = mindex)
             print("initialized dataframe dfV", datetime.now().strftime("%H:%M:%S"))
@@ -61,11 +68,11 @@ def init_policy_iteration(pi_seq_nr=-1, v_seq_nr=-1):
             #dfPi.set_index(DFCOL_V_STATE)
             print("(re)set index for dfV", datetime.now().strftime("%H:%M:%S"))
     
-    return dfSASP, dfSp_Ren_Ret, dfV, dfPi
+    return dfSASP, dfSp_Ren_Ret, dfV, dfPi, max(pi_seq_nr, v_seq_nr) + 1
     
 def policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr):
     while True:
-        delta, gamma, theta = 0., 0.9, 0.1
+        delta = 0.
         v, new_v = 0., 0.
         
         for index, row in dfV.iterrows():
@@ -75,85 +82,90 @@ def policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr):
             # init the new value at 0. to keep adding partial values to it later
             new_v = 0.
             
-            # the action currently produced by the greedy policy for the original state
-            action = dfPi.loc[dfPi[DFCOL_PI_STATE] == orig_state, DFCOL_PI_ACTION].values[0]
-
-            # the pseudo-state the original state and current action lead to, and the
-            # penalty incurred by that action
-            pseudo_state, action_penalty = dfSASP.loc[
-                (dfSASP[DFCOL_SASP_SORIG] == orig_state) & (dfSASP[DFCOL_SASP_ACTION] == action), 
-                [DFCOL_SASP_SPSEUDO, DFCOL_SASP_FEES]].values[0]
-            
-            # dataframe dfProbs holds the following columns from dfSp_Ren_Ret that correspond to the pseudo-state:
-            # (1) all valid rental&return count combinations across locations
-            # DFCOL_SPRENRET_RENTALS_A, DFCOL_SPRENRET_RENTALS_B, DFCOL_SPRENRET_RETURNS_A, DFCOL_SPRENRET_RETURNS_B, 
-            # (2) their corresponding next state
-            # DFCOL_SPRENRET_SNEXT
-            # (3) their respective Poisson probabilities
-            # DFCOL_SPRENRET_PROBSRSA, 
-            # (4) their respective reward
-            # DFCOL_SPRENRET_REWARD
-            dfProbs = dfSp_Ren_Ret.loc[
-                dfSp_Ren_Ret[DFCOL_SPRENRET_SPSEUDO] == pseudo_state, 
-                [DFCOL_SPRENRET_RENTALS_A, DFCOL_SPRENRET_RENTALS_B, 
-                 DFCOL_SPRENRET_RETURNS_A, DFCOL_SPRENRET_RETURNS_B, 
-                 DFCOL_SPRENRET_SNEXT,
-                 DFCOL_SPRENRET_PROBSRSA, 
-                 DFCOL_SPRENRET_REWARD]]
-            
-            # loop through dfProbs and add to the state's value the probability-weighted average of 
-            # (reward plus discounted next-state value) over next states and their rewards
-            dfJoined = pd.merge(dfProbs, dfV, how="left", left_on=DFCOL_SPRENRET_SNEXT, right_on=DFCOL_V_STATE)
-            new_v = (
-                dfJoined[DFCOL_SPRENRET_PROBSRSA] * (
-                    dfJoined[DFCOL_SPRENRET_REWARD] - action_penalty + gamma*dfJoined[DFCOL_V_VALUE]
-                )
-            ).sum()
+            # legitimate actions for the state vary dependent on mode
+            # we'll iterate through all legitimate actions, ignoring current greedy policy
+            legit_actions = dfSASP.loc[dfSASP[DFCOL_SASP_SORIG] == orig_state, DFCOL_SASP_ACTION].tolist()
+                
+            for action in legit_actions:
+                # the pseudo-state the original state and current action lead to, and the
+                # penalty incurred by that action
+                pseudo_state, action_penalty = dfSASP.loc[
+                    (dfSASP[DFCOL_SASP_SORIG] == orig_state) & (dfSASP[DFCOL_SASP_ACTION] == action), 
+                    [DFCOL_SASP_SPSEUDO, DFCOL_SASP_FEES]].values[0]
+                
+                # dataframe dfProbs holds the following columns from dfSp_Ren_Ret that correspond to the pseudo-state:
+                # (1) all valid rental&return count combinations across locations
+                # DFCOL_SPRENRET_RENTALS_A, DFCOL_SPRENRET_RENTALS_B, DFCOL_SPRENRET_RETURNS_A, DFCOL_SPRENRET_RETURNS_B, 
+                # (2) their corresponding next state
+                # DFCOL_SPRENRET_SNEXT
+                # (3) their respective Poisson probabilities
+                # DFCOL_SPRENRET_PROBSRSA, 
+                # (4) their respective reward
+                # DFCOL_SPRENRET_REWARD
+                dfProbs = dfSp_Ren_Ret.loc[
+                    dfSp_Ren_Ret[DFCOL_SPRENRET_SPSEUDO] == pseudo_state, 
+                    [DFCOL_SPRENRET_RENTALS_A, DFCOL_SPRENRET_RENTALS_B, 
+                    DFCOL_SPRENRET_RETURNS_A, DFCOL_SPRENRET_RETURNS_B, 
+                    DFCOL_SPRENRET_SNEXT,
+                    DFCOL_SPRENRET_PROBSRSA, 
+                    DFCOL_SPRENRET_REWARD]]
+                
+                # loop through dfProbs and add to the state's value the probability-weighted average of 
+                # (reward plus discounted next-state value) over next states and their rewards
+                dfJoined = pd.merge(dfProbs, dfV, how="left", left_on=DFCOL_SPRENRET_SNEXT, right_on=DFCOL_V_STATE)
+                prob_pi = dfPi.loc[(dfPi[DFCOL_PI_STATE] == orig_state) & (dfPi[DFCOL_PI_ACTION] == action), DFCOL_PI_PROB].values[0]
+                new_v += ((
+                    dfJoined[DFCOL_SPRENRET_PROBSRSA] * (
+                        dfJoined[DFCOL_SPRENRET_REWARD] - action_penalty + GAMMA*dfJoined[DFCOL_V_VALUE]
+                    )
+                ).sum() * prob_pi)
             
             # update dfV with the new value for this state
             dfV.loc[index, DFCOL_V_VALUE] = new_v
-#                print("new value found for state " + orig_state + ": " + str(dfV.loc[index, DFCOL_V_VALUE]))
                 
             # keep record of the greatest yet delta between an old and a new state value within this iteration 
             delta = max(delta, abs(v - new_v))
-            #print("delta = " + str(delta))
         
-        if(delta - theta < 0.): 
-            # good enough
+        if(delta - THETA < 0.): 
+            # computed values are good enough
             commit_to_csv(dfV, "dfV" + str(seq_nr).zfill(2) + ".csv")
             seq_nr = seq_nr + 1
             print_status("values deemed good enough")
             break 
         else:
-            # not yet good enough
+            # computed values are not yet good enough
             print_status("values deemed not good enough, going for another value loop")
-            print(dfV)
+            print(dfV, delta)
             
     # there's a new value function => improve the policy next
     policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr)
     
 def policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr):
-    gamma = 0.9
+    delta = 0.
     v, new_v = 0., 0.
     policy_stable = True
-    maximizing_action = None
-    maximum_value = -100000.
+    max_v = -100000.
     
-    for index, row in dfPi.iterrows():
+    # create a dict of format {state:df_actions_and_probs}
+    groups = dict(list(dfPi.groupby(DFCOL_PI_STATE)))
+    for orig_state in groups:
+        dfState = groups[orig_state]
+    #for row in dfPi.iterrows():
         # the current state, interpreted as original state
-        orig_state = row[DFCOL_PI_STATE]
-#        print("orig_state = " + orig_state)
+        #orig_state = row[DFCOL_PI_STATE]
         
-        maximum_value = -100000.
-        maximizing_action = None
+        max_v = -100000.
+        new_a = None
+        delta = 0.
         
-        # the action currently produced by the greedy policy for the original state
-        action = dfPi.loc[dfPi[DFCOL_PI_STATE] == orig_state, DFCOL_PI_ACTION].values[0]
-#        print("action = " + str(action))
-
+        # the so far known maximizing action for this state
+        #dfState = dfPi.loc[dfPi[DFCOL_PI_STATE] == orig_state, [DFCOL_PI_ACTION, DFCOL_PI_PROB]]
+        a = dfState.loc[dfState[DFCOL_PI_PROB] == np.amax(dfState[DFCOL_PI_PROB]), DFCOL_PI_ACTION].values[0]
+        v = dfV.loc[dfV[DFCOL_V_STATE] == orig_state, DFCOL_V_VALUE].values[0]
+        
         # legitimate actions for the state vary dependent on mode
         # we'll iterate through all legitimate actions, ignoring current greedy policy
-        legit_actions = dfSASP.loc[dfSASP[DFCOL_SASP_SORIG] == orig_state, DFCOL_SASP_ACTION].tolist()
+        legit_actions = dfState[DFCOL_PI_ACTION].tolist()
             
         for action in legit_actions:
             # the pseudo-state the original state and current action lead to, and the
@@ -185,20 +197,26 @@ def policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr):
             dfJoined = pd.merge(dfProbs, dfV, how="left", left_on=DFCOL_SPRENRET_SNEXT, right_on=DFCOL_V_STATE)
             new_v = (
                 dfJoined[DFCOL_SPRENRET_PROBSRSA] * (
-                    dfJoined[DFCOL_SPRENRET_REWARD] - action_penalty + gamma*dfJoined[DFCOL_V_VALUE]
+                    dfJoined[DFCOL_SPRENRET_REWARD] - action_penalty + GAMMA*dfJoined[DFCOL_V_VALUE]
                 )
             ).sum()
 
             # if the computed state value is larger than seen so far, then the current action is a maximizer
-            if maximum_value - new_v < 0.:
-                maximum_value = max(maximum_value, new_v)
-                maximizing_action = action
-
-        # record any new maximizing action for the state
-        dfPi.loc[index, DFCOL_PI_ACTION] = maximizing_action
-        new_v = maximum_value
-            
-        if action != maximizing_action and v < new_v: 
+            if max_v - new_v < 0.:
+                max_v = new_v
+                new_a = action
+                
+                # keep record of the greatest yet delta between an old and a new state value within this state loop 
+                delta = max(delta, abs(v - new_v))
+                
+        # update the probabilities for the current state and all its possible actions in dfPi
+        num_actions = float(dfPi[dfPi[DFCOL_PI_STATE] == orig_state].shape[0])
+        prob_pref_action = 1. - EPSILON + (EPSILON/num_actions)
+        prob_other_action = EPSILON/num_actions
+        dfPi.loc[(dfPi[DFCOL_PI_STATE] == orig_state) & (dfPi[DFCOL_PI_ACTION] == new_a), DFCOL_PI_PROB] = prob_pref_action
+        dfPi.loc[(dfPi[DFCOL_PI_STATE] == orig_state) & (dfPi[DFCOL_PI_ACTION] != new_a), DFCOL_PI_PROB] = prob_other_action
+        
+        if a != new_a and delta - THETA > 0.: 
             policy_stable = False
     
     #commit_to_csv(dfPi, "dfPi" + str(seq_nr).zfill(2) + ".csv")
@@ -218,14 +236,13 @@ def policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr):
 
 # module testing code
 if __name__ == '__main__':
-    #dfSASP = load_from_csv("dfSASP.csv")
-    #print(dfSASP.head(20))
-
-    #dfSp_Ren_Ret = load_from_csv("dfSp_Ren_Ret.csv")
-    #print(dfSp_Ren_Ret.head(20))
+    v_seq_nr, pi_seq_nr = 0, -1
     
-    seq_nr = 0
+    assert (abs(pi_seq_nr - v_seq_nr) == 1) or (pi_seq_nr == -1 and v_seq_nr == -1)
     
-    dfSASP, dfSp_Ren_Ret, dfV, dfPi = init_policy_iteration(pi_seq_nr=-1, v_seq_nr=-1)
-    policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr)
+    dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr = init_policy_iteration(pi_seq_nr=pi_seq_nr, v_seq_nr=v_seq_nr)
+    if (pi_seq_nr > v_seq_nr) or (pi_seq_nr == -1 and v_seq_nr == -1):
+        policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr)
+    elif pi_seq_nr < v_seq_nr:
+        policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr)
     

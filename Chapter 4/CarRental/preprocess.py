@@ -12,8 +12,8 @@ def init_temp_df(data):
         DFCOL_SPRENRET_SPSEUDO,
         DFCOL_SPRENRET_RENTALS_A, DFCOL_SPRENRET_RENTALS_B,
         DFCOL_SPRENRET_RETURNS_A, DFCOL_SPRENRET_RETURNS_B,
-        "p_ren_1", "p_ren_2", 
-        "p_ret_1", "p_ret_2", 
+        DFCOL_SPRENRET_PROB_RENTALS_A, DFCOL_SPRENRET_PROB_RENTALS_B, 
+        DFCOL_SPRENRET_PROB_RETURNS_A, DFCOL_SPRENRET_PROB_RETURNS_B, 
         DFCOL_SPRENRET_PROBSRSA,
         DFCOL_SPRENRET_REWARD]
     
@@ -25,10 +25,10 @@ def init_temp_df(data):
         DFCOL_SPRENRET_RENTALS_B: int,
         DFCOL_SPRENRET_RETURNS_A: int,
         DFCOL_SPRENRET_RETURNS_B: int,
-        "p_ren_1": float, 
-        "p_ren_2": float, 
-        "p_ret_1": float, 
-        "p_ret_2": float, 
+        DFCOL_SPRENRET_PROB_RENTALS_A: float, 
+        DFCOL_SPRENRET_PROB_RENTALS_B: float, 
+        DFCOL_SPRENRET_PROB_RETURNS_A: float, 
+        DFCOL_SPRENRET_PROB_RETURNS_B: float, 
         DFCOL_SPRENRET_PROBSRSA: float,
         DFCOL_SPRENRET_REWARD: int
     })
@@ -206,10 +206,10 @@ def prep_dfSpRenRet():
                 probs = lookup_prob_vectorized(dftemp.iloc[:, 1+i], exp_numbers[i])
                 dftemp.iloc[:, 5+i] = probs
             
-#            # apply a softmax over each probability row
-#            for i in range(4):
-#                probs = softmax_vectorized(dftemp.iloc[:, 5+i])
-#                dftemp.iloc[:, 5+i] = probs
+            # # apply a softmax over each probability row
+            # for i in range(4):
+            #    probs = softmax_vectorized(dftemp.iloc[:, 5+i])
+            #    dftemp.iloc[:, 5+i] = probs
                 
             # compute and write the joint probability
             prob_rentals = np.multiply(dftemp.iloc[:, -6:-5], dftemp.iloc[:, -5:-4])
