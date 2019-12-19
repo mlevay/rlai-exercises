@@ -9,6 +9,9 @@ def init_policy_iteration(pi_seq_nr=-1, v_seq_nr=-1):
     # Load data from CSV
     dfSASP = load_from_csv("dfSASP.csv")
     dfSp_Ren_Ret = load_from_csv("dfSp_Ren_Ret.csv")
+    # this is just to add a new column whenever code changes 
+    if not(DFCOL_SPRENRET_FEES in dfSp_Ren_Ret.columns):
+        dfSp_Ren_Ret[DFCOL_SPRENRET_FEES] = [0]*dfSp_Ren_Ret.shape[0]
     
     # if we need to load one or both of the two dataframes (dfPi, dfV)
     if pi_seq_nr > -1:
@@ -108,7 +111,8 @@ def policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr):
                     DFCOL_SPRENRET_RETURNS_A, DFCOL_SPRENRET_RETURNS_B, 
                     DFCOL_SPRENRET_SNEXT,
                     DFCOL_SPRENRET_PROBSRSA, 
-                    DFCOL_SPRENRET_REWARD]]
+                    DFCOL_SPRENRET_REWARD,
+                    DFCOL_SPRENRET_FEES]]
                 
                 # loop through dfProbs and add to the state's value the probability-weighted average of 
                 # (reward plus discounted next-state value) over next states and their rewards
@@ -116,7 +120,7 @@ def policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr):
                 prob_pi = dfPi.loc[(dfPi[DFCOL_PI_STATE] == orig_state) & (dfPi[DFCOL_PI_ACTION] == action), DFCOL_PI_PROB].values[0]
                 new_v += ((
                     dfJoined[DFCOL_SPRENRET_PROBSRSA] * (
-                        dfJoined[DFCOL_SPRENRET_REWARD] - action_penalty + GAMMA*dfJoined[DFCOL_V_VALUE]
+                        dfJoined[DFCOL_SPRENRET_REWARD] - action_penalty - dfJoined[DFCOL_SPRENRET_FEES] + GAMMA*dfJoined[DFCOL_V_VALUE]
                     )
                 ).sum() * prob_pi)
             
@@ -138,7 +142,8 @@ def policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr):
             print(dfV, delta)
             
     # there's a new value function => improve the policy next
-    policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr)
+    dfPi, dfV = policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr)
+    return dfPi, dfV
     
 def policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr):
     delta = 0.
@@ -189,7 +194,8 @@ def policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr):
                  DFCOL_SPRENRET_RETURNS_A, DFCOL_SPRENRET_RETURNS_B, 
                  DFCOL_SPRENRET_SNEXT,
                  DFCOL_SPRENRET_PROBSRSA, 
-                 DFCOL_SPRENRET_REWARD]]
+                 DFCOL_SPRENRET_REWARD,
+                 DFCOL_SPRENRET_FEES]]
 
             # loop through dfProbs and look for the action that would maximize the state's value
             new_v = 0.
@@ -197,7 +203,7 @@ def policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr):
             dfJoined = pd.merge(dfProbs, dfV, how="left", left_on=DFCOL_SPRENRET_SNEXT, right_on=DFCOL_V_STATE)
             new_v = (
                 dfJoined[DFCOL_SPRENRET_PROBSRSA] * (
-                    dfJoined[DFCOL_SPRENRET_REWARD] - action_penalty + GAMMA*dfJoined[DFCOL_V_VALUE]
+                    dfJoined[DFCOL_SPRENRET_REWARD] - action_penalty - dfJoined[DFCOL_SPRENRET_FEES] + GAMMA*dfJoined[DFCOL_V_VALUE]
                 )
             ).sum()
 
@@ -232,17 +238,19 @@ def policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr):
         
         print_status("a better policy was found, going for another value loop")
         print(dfPi)
-        policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr)
+        dfPi, dfV = policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr)
+        
+    return dfPi, dfV
 
 # module testing code
 if __name__ == '__main__':
-    v_seq_nr, pi_seq_nr = -1, -1
+    v_seq_nr, pi_seq_nr = 2, 1
     
     assert (abs(pi_seq_nr - v_seq_nr) == 1) or (pi_seq_nr == -1 and v_seq_nr == -1)
     
     dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr = init_policy_iteration(pi_seq_nr=pi_seq_nr, v_seq_nr=v_seq_nr)
     if (pi_seq_nr > v_seq_nr) or (pi_seq_nr == -1 and v_seq_nr == -1):
-        policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr)
+        dfPi, dfV = policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr)
     elif pi_seq_nr < v_seq_nr:
-        policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr)
+        dfPi, dfV = policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr)
     

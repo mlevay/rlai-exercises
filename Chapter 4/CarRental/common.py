@@ -13,6 +13,10 @@ def get_state_name(state_a, state_b):
     """Obtain the unique state name in the format <num cars loc A>_<num cars loc B>"""
     return state_a.zfill(2) + "_" + state_b.zfill(2)# helper function to calculate the probability of rentals & returns at a location
 
+def get_state_components(state_name):
+    """Obtain the individual components (# cars at location A and B) for a state name"""
+    return list(map(int, (state_name.split('_'))))
+
 def commit_to_csv(df, file_name):
     """Commit a dataframe to CSV file"""
     if not os.path.exists(PATH_SPRENRET_CSV):

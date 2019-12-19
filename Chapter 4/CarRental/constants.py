@@ -1,8 +1,9 @@
 PATH_SPRENRET_CSV = "C:/Temp/rlai-exercises/Chapter 4/data"
+ORIGINAL_PROBLEM = True
 
 EPSILON = 0.01
 GAMMA = 0.9
-THETA = 1.
+THETA = 0.5
 
 DEFAULT_ACTION = 5
 DEFAULT_VALUE = 0.
@@ -20,6 +21,7 @@ EXP_VALUE_RENTALS_LOC_2 = 4
 EXP_VALUE_RETURNS_LOC_1 = 3
 EXP_VALUE_RETURNS_LOC_2 = 2
 REWARD_PER_RENTAL = 10
+FEES_PER_PARKING_NIGHT = 4
 
 # Constants for the dataframe dfS_A_Sp
 DFCOL_SASP_SORIG = "s_k"
@@ -47,6 +49,7 @@ DFCOL_SPRENRET_PROB_RETURNS_A = "p_returns_a"
 DFCOL_SPRENRET_PROB_RETURNS_B = "p_returns_b"
 DFCOL_SPRENRET_PROBSRSA = "p_of_srsa" # p(s',r|s,a)
 DFCOL_SPRENRET_REWARD = "r_k_reward" # each sequence (s,a,s') results in a unique reward r
+DFCOL_SPRENRET_FEES = "fees_k"
 DFCOL_SPRENRET_SNEXT_A = "s_k_plus_1_a"
 DFCOL_SPRENRET_SNEXT_B = "s_k_plus_1_b"
 

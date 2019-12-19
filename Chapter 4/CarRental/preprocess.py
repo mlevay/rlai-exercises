@@ -1,6 +1,7 @@
 from common import *
 from constants import *
 from probabilities import * 
+from rewards import *
 
 def get_reward(rentals):
     """Calculate the reward from rentals across locations"""
@@ -15,7 +16,8 @@ def init_temp_df(data):
         DFCOL_SPRENRET_PROB_RENTALS_A, DFCOL_SPRENRET_PROB_RENTALS_B, 
         DFCOL_SPRENRET_PROB_RETURNS_A, DFCOL_SPRENRET_PROB_RETURNS_B, 
         DFCOL_SPRENRET_PROBSRSA,
-        DFCOL_SPRENRET_REWARD]
+        DFCOL_SPRENRET_REWARD,
+        DFCOL_SPRENRET_FEES]
     
     dftemp = pd.DataFrame(data, columns=columns)
     
@@ -30,7 +32,8 @@ def init_temp_df(data):
         DFCOL_SPRENRET_PROB_RETURNS_A: float, 
         DFCOL_SPRENRET_PROB_RETURNS_B: float, 
         DFCOL_SPRENRET_PROBSRSA: float,
-        DFCOL_SPRENRET_REWARD: int
+        DFCOL_SPRENRET_REWARD: int,
+        DFCOL_SPRENRET_FEES: int
     })
     
     return dftemp
@@ -125,8 +128,9 @@ def prep_dfSASP():
 
     dfSASP = dfSASP.sort_values(DFCOL_SASP_SPSEUDO)
 
-    # compute fees for a
-    dfSASP[DFCOL_SASP_FEES] = abs(dfSASP[DFCOL_SASP_ACTION].map(dict_actions).astype(int)*UNIT_COST_OF_TRANSFER)
+    # compute fees for a (incurred by transfer)
+    #dfSASP[DFCOL_SASP_FEES] = abs(dfSASP[DFCOL_SASP_ACTION].map(dict_actions).astype(int)*UNIT_COST_OF_TRANSFER)
+    dfSASP[DFCOL_SASP_FEES] = dfSASP[DFCOL_SASP_ACTION].map(dict_actions).apply(compute_transfer_fees)
     
     return dfSASP
 
@@ -222,7 +226,7 @@ def prep_dfSpRenRet():
             # dftemp = dftemp.iloc[:, [0,1,2,3,4,9,10]]
             
             # compute the rewards for rentals
-            dftemp.iloc[:, -1] = get_reward(dftemp.iloc[:, 1] + dftemp.iloc[:, 2])   
+            dftemp.iloc[:, -2] = get_reward(dftemp.iloc[:, 1] + dftemp.iloc[:, 2])   
             # print(dftemp)
             
             dfSp_Ren_Ret = dfSp_Ren_Ret.append(pd.DataFrame(dftemp, columns=[
@@ -232,7 +236,8 @@ def prep_dfSpRenRet():
                 DFCOL_SPRENRET_PROB_RENTALS_A, DFCOL_SPRENRET_PROB_RENTALS_B,
                 DFCOL_SPRENRET_PROB_RETURNS_A, DFCOL_SPRENRET_PROB_RETURNS_B,
                 DFCOL_SPRENRET_PROBSRSA,
-                DFCOL_SPRENRET_REWARD]))
+                DFCOL_SPRENRET_REWARD,
+                DFCOL_SPRENRET_FEES]))
             #print(dfSp_Ren_Ret) 
     print_status("dataframe creation done")
     
@@ -257,6 +262,10 @@ def prep_dfSpRenRet():
         lambda d: get_state_name(str(d[DFCOL_SPRENRET_SNEXT_A]), str(d[DFCOL_SPRENRET_SNEXT_B])),
         axis=1)
     print_status("next state named")
+    
+    dfSp_Ren_Ret[DFCOL_SPRENRET_FEES] = dfSp_Ren_Ret.apply(
+        lambda d: compute_parking_fees(d[DFCOL_SPRENRET_SNEXT_A], d[DFCOL_SPRENRET_SNEXT_B])
+    ) 
     
     return dfSp_Ren_Ret
 
