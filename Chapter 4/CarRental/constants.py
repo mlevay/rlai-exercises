@@ -2,7 +2,7 @@ PATH_SPRENRET_CSV = "C:/Temp/rlai-exercises/Chapter 4/data"
 
 EPSILON = 0.01
 GAMMA = 0.9
-THETA = 0.1
+THETA = 1.
 
 DEFAULT_ACTION = 5
 DEFAULT_VALUE = 0.
