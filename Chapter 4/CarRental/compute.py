@@ -236,7 +236,7 @@ def policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr):
 
 # module testing code
 if __name__ == '__main__':
-    v_seq_nr, pi_seq_nr = 0, -1
+    v_seq_nr, pi_seq_nr = -1, -1
     
     assert (abs(pi_seq_nr - v_seq_nr) == 1) or (pi_seq_nr == -1 and v_seq_nr == -1)
     

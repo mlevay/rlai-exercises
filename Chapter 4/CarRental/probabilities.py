@@ -25,17 +25,18 @@ def lookup_prob(number, exp_number):
     return np.unique(result)
 
 def lookup_prob_vectorized(numbers, exp_number):
-    """Vectorized Poisson probability lookup"""
-    #max_indices = np.where(numbers == np.amax(numbers))
+    """Vectorized Poisson probability lookup, stretched to ensure sum_prob = 1"""
+    _, unique_indices = np.unique(numbers, return_index=True)
+    max_indices = np.where(numbers == np.amax(numbers))
     probs = [0.] * len(numbers)
     for i in range(len(numbers)):
-        #if not np.isin(i, max_indices):
+        if not np.isin(i, max_indices):
             probs[i] = lookup_prob(numbers[i], exp_number)
     
-    #probs_sum_so_far = np.sum(np.unique(probs))
-    #for i in range(len(numbers)):
-    #    if np.isin(i, max_indices):
-    #        probs[i] = 1 - probs_sum_so_far
+    probs_sum_so_far = np.sum(np.take(probs, unique_indices))
+    for i in range(len(numbers)):
+        if np.isin(i, max_indices):
+            probs[i] = 1. - probs_sum_so_far
     return probs
 
 def softmax_vectorized(x): 

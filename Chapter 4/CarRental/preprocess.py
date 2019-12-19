@@ -178,7 +178,9 @@ def prep_dfSpRenRet():
     dfSp_Ren_Ret = pd.DataFrame(columns=[
         DFCOL_SPRENRET_SPSEUDO,
         DFCOL_SPRENRET_RENTALS_A, DFCOL_SPRENRET_RENTALS_B,
-        DFCOL_SPRENRET_RETURNS_A, DFCOL_SPRENRET_RETURNS_B])
+        DFCOL_SPRENRET_RETURNS_A, DFCOL_SPRENRET_RETURNS_B,
+        DFCOL_SPRENRET_PROB_RENTALS_A, DFCOL_SPRENRET_PROB_RENTALS_B,
+        DFCOL_SPRENRET_PROB_RETURNS_A, DFCOL_SPRENRET_PROB_RETURNS_B])
 
     ren_a, ren_b = [], []
     ret_a, ret_b = [], []
@@ -212,12 +214,12 @@ def prep_dfSpRenRet():
             #    dftemp.iloc[:, 5+i] = probs
                 
             # compute and write the joint probability
-            prob_rentals = np.multiply(dftemp.iloc[:, -6:-5], dftemp.iloc[:, -5:-4])
-            prob_returns = np.multiply(dftemp.iloc[:, -4:-3], dftemp.iloc[:, -3:-2])
-            dftemp.iloc[:, -2:-1] = np.multiply(prob_rentals.iloc[:,0], prob_returns.iloc[:,0])
+            prob_rentals = np.multiply(dftemp.iloc[:, -6], dftemp.iloc[:, -5])
+            prob_returns = np.multiply(dftemp.iloc[:, -4], dftemp.iloc[:, -3])
+            dftemp.iloc[:, -2] = np.multiply(prob_rentals.iloc[:], prob_returns.iloc[:])
             
-            # retire the granular probability columns
-            dftemp = dftemp.iloc[:, [0,1,2,3,4,9,10]]
+            # # retire the granular probability columns
+            # dftemp = dftemp.iloc[:, [0,1,2,3,4,9,10]]
             
             # compute the rewards for rentals
             dftemp.iloc[:, -1] = get_reward(dftemp.iloc[:, 1] + dftemp.iloc[:, 2])   
@@ -227,6 +229,8 @@ def prep_dfSpRenRet():
                 DFCOL_SPRENRET_SPSEUDO,
                 DFCOL_SPRENRET_RENTALS_A, DFCOL_SPRENRET_RENTALS_B,
                 DFCOL_SPRENRET_RETURNS_A, DFCOL_SPRENRET_RETURNS_B,
+                DFCOL_SPRENRET_PROB_RENTALS_A, DFCOL_SPRENRET_PROB_RENTALS_B,
+                DFCOL_SPRENRET_PROB_RETURNS_A, DFCOL_SPRENRET_PROB_RETURNS_B,
                 DFCOL_SPRENRET_PROBSRSA,
                 DFCOL_SPRENRET_REWARD]))
             #print(dfSp_Ren_Ret) 
