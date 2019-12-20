@@ -3,7 +3,9 @@ import os
 import pandas as pd
 import scipy.special
 
-from constants import *
+from .constants import MAX_NUMBER_OF_CARS_LOC_1, MAX_NUMBER_OF_CARS_LOC_2
+from .constants import EXP_VALUE_RENTALS_LOC_1, EXP_VALUE_RENTALS_LOC_2
+from .constants import EXP_VALUE_RETURNS_LOC_1, EXP_VALUE_RETURNS_LOC_2
 
 def get_probsrsa_vectorized(number, exp_rate):
     """Vectorized Poisson probability computation"""

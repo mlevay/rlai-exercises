@@ -1,5 +1,43 @@
+# whether we're solving the original problem (Example 4.2) 
+# or for the additional requirements (Ex. 4.7);
+ORIGINAL_PROBLEM = False
+
+# whether to use disk to r/w the following CSV files:
+# (-) states, valid next actions and their respective pseudo-
+#     states, and the car transfer fees they incur (dfSASP.csv);
+# (-) pseudo-states, valid rental/return combinations for them,
+#     the next state they lead to, as well as the respective
+#     probabilities, rewards and overflow parking fees they
+#     incur (dfSp_Ren_Ret.csv);
+# (-) states and their respective values, as learned in
+#     policy iteration (dfV.csv);
+# (-) states and actions, plus their respective probabilities
+#     per policy, as learned in policy iteration (dfPi.csv).
+# Don't use this option if you don't have >=rw access to disk;
+USE_DISK_FOR_CSV_DATA = True
+
+# what directory to use for r/w of CSV files from/to disk
 PATH_SPRENRET_CSV = "C:/Temp/rlai-exercises/Chapter 4/data"
-ORIGINAL_PROBLEM = True
+
+# whether to load cached preprocessed data from CSV files
+# for purposes of quick visualization w/o a full code run
+# (dfSASP.csv, dfSp_Ren_Ret.csv).
+# Don't set this to TRUE if USE_DISK_FOR_CSV_DATA = False;
+GET_DATA_FROM_CSV = True
+
+# whether to load cached models from CSV files
+# for purposes of quick visualization w/o a full code run
+# (dfPi.csv, dfV.csv).
+# Don't set this to TRUE if USE_DISK_FOR_CSV_DATA = False;
+GET_MODEL_FROM_CSV = True
+
+# what file numbers to use for loading the models from
+# dfPi.csv, dfV.csv.
+# Set both to -1 if GET_MODEL_FROM_CSV = False or to
+# the file numbers >=0 if GET_MODEL_FROM_CSV = True;
+# don't set this to TRUE if USE_DISK_FOR_CSV_DATA = False.
+PI_SEQ_NR = -1
+V_SEQ_NR = -1
 
 EPSILON = 0.01
 GAMMA = 0.9
@@ -13,8 +51,6 @@ MIN_NUMBER_OF_CARS_LOC_2 = 0
 MAX_NUMBER_OF_CARS_LOC_1 = 20
 MAX_NUMBER_OF_CARS_LOC_2 = 20
 MAX_NUMBER_OF_CARS_PER_TRANSFER = 5
-INDEX_FIRST_CHARGEABLE_TRANSFER = 0
-INDEX_LAST_CHARGEABLE_TRANSFER = 4
 UNIT_COST_OF_TRANSFER = 2
 EXP_VALUE_RENTALS_LOC_1 = 3
 EXP_VALUE_RENTALS_LOC_2 = 4
