@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import pandas as pd
 from CarRental import common, compute, constants, postprocess, preprocess
 
@@ -16,26 +17,34 @@ def run():
 
     dfSASP, dfSp_Ren_Ret, dfPi, dfV = None, None, None, None
     # Pre-process data, or get it from CSV files
-    if disk_allowed == True:
-        if use_csv_data == True:
-            # get cached pre-processed data from disk
-            dfSASP = common.load_from_csv("dfSASP.csv", dir_path=dir_path)
-            dfSp_Ren_Ret = common.load_from_csv("dfSp_Ren_Ret.csv", dir_path=dir_path)
-        else:
-            # pre-process data and commit to to disk
-            dfSASP = preprocess.prep_dfSASP(is_orig_problem=is_orig_problem)
-            dfSp_Ren_Ret = preprocess.prep_dfSpRenRet(is_orig_problem=is_orig_problem)
-            common.commit_to_csv(dfSASP, "dfSASP.csv", dir_path=dir_path)
-            common.commit_to_csv(dfSp_Ren_Ret, "dfSp_Ren_Ret.csv", dir_path=dir_path)
-    else:
+    create_dfSASP, create_dfSp_Ren_Ret = False, False
+    if disk_allowed == True and use_csv_data == True:
+        # get cached pre-processed data from disk
+        dfSASP = common.load_from_csv("dfSASP.csv", dir_path=dir_path)
+        dfSp_Ren_Ret = common.load_from_csv("dfSp_Ren_Ret.csv", dir_path=dir_path)
+        if dfSASP == None: create_dfSASP = True
+        if dfSp_Ren_Ret == None: create_dfSp_Ren_Ret = True
+        
+    if create_dfSASP == True:
         dfSASP = preprocess.prep_dfSASP(is_orig_problem=is_orig_problem)
+        if disk_allowed == True: 
+            common.commit_to_csv(dfSASP, "dfSASP.csv", dir_path=dir_path)
+    if create_dfSp_Ren_Ret == True:
         dfSp_Ren_Ret = preprocess.prep_dfSpRenRet(is_orig_problem=is_orig_problem)
+        if disk_allowed == True:
+            common.commit_to_csv(dfSp_Ren_Ret, "dfSp_Ren_Ret.csv", dir_path=dir_path)   
         
     # Compute policy and value function
-    if disk_allowed == True and use_csv_model == True and pi_seq_nr > -1 and v_seq_nr > -1:
-        dfPi = common.load_from_csv("dfPi" + str(pi_seq_nr).zfill(2) + ".csv", dir_path=dir_path)
-        dfV = common.load_from_csv("pfV" + str(v_seq_nr).zfill(2) + ".csv", dir_path=dir_path)
-    else:
+    if disk_allowed == True and use_csv_model == True:
+        # get cached model from disk 
+        if pi_seq_nr > -1:
+            dfPi = common.load_from_csv("dfPi" + str(pi_seq_nr).zfill(2) + ".csv", dir_path=dir_path)
+            if dfPi == None: pi_seq_nr = -1
+        if v_seq_nr > -1:
+            dfV = common.load_from_csv("pfV" + str(v_seq_nr).zfill(2) + ".csv", dir_path=dir_path)
+            if dfV == None: v_seq_nr = -1
+    
+    if pi_seq_nr == -1 or v_seq_nr == -1:
         dfPi, dfV = compute.policy_iteration(
             dfSASP, dfSp_Ren_Ret, pi_seq_nr=pi_seq_nr, v_seq_nr=v_seq_nr, 
             disk_allowed=disk_allowed, dir_path=dir_path)

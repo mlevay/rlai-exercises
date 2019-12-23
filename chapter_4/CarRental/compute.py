@@ -26,10 +26,12 @@ def init_policy_iteration(dfSASP, dfSp_Ren_Ret, pi_seq_nr=-1, v_seq_nr=-1, disk_
     if(disk_allowed):
         if pi_seq_nr > -1:
             dfPi = load_from_csv("dfPi" + str(pi_seq_nr).zfill(2) + ".csv", dir_path=dir_path)
+            if dfPi == None: pi_seq_nr = -1 # we need to start over, with seq_nr = 0
         if v_seq_nr > -1:
             dfV = load_from_csv("dfV" + str(v_seq_nr).zfill(2) + ".csv", dir_path=dir_path)
+            if dfV == None: v_seq_nr = -1 # we need to start over, with seq_nr = 0
     else:
-        pi_seq_nr, v_seq_nr = -1, -1 # we need to start over anyway, with seq_nr = 0
+        pi_seq_nr, v_seq_nr = -1, -1 # we need to start over, with seq_nr = 0
     
     # if we need to do calculation for any of the two dataframes (dfPi, dfV)
     if pi_seq_nr == -1:
@@ -168,9 +170,6 @@ def policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr, disk_allowed=Fal
     groups = dict(list(dfPi.groupby(DFCOL_PI_STATE)))
     for orig_state in groups:
         dfState = groups[orig_state]
-    #for row in dfPi.iterrows():
-        # the current state, interpreted as original state
-        #orig_state = row[DFCOL_PI_STATE]
         
         max_v = -100000.
         new_a = None

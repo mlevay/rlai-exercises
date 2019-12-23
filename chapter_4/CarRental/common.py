@@ -22,6 +22,8 @@ def commit_to_csv(df, file_name, dir_path=None):
     if dir_path == None: dir_path = PATH_SPRENRET_CSV
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
+    elif os.path.isdir == False:
+        raise FileExistsError("A file with the directory name you specified already exists. Please resolve the issue and run the code again.")
 
     abs_file_name = os.path.join(dir_path, file_name)
     df.to_csv(path_or_buf=abs_file_name, sep='\t', encoding='utf-8', index=False)
@@ -29,6 +31,11 @@ def commit_to_csv(df, file_name, dir_path=None):
 def load_from_csv(file_name, dir_path=None):
     """Load a dataframe from CSV file"""
     if dir_path == None: dir_path = PATH_SPRENRET_CSV
+    if os.path.exists == False: 
+        return None # this will signal that the data we are looking for doesn't exist
+    elif os.path.isfile == False:
+        raise FileNotFoundError("A folder with the file name you specified already exists. Please resolve the issue and run the code again.")
+    
     abs_file_name = os.path.join(dir_path, file_name)
     return pd.read_csv(filepath_or_buffer=abs_file_name, sep='\t', encoding='utf-8')
 
