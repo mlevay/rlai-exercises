@@ -1,6 +1,6 @@
 # whether we're solving the original problem (Example 4.2) 
 # or for the additional requirements (Ex. 4.7);
-ORIGINAL_PROBLEM = True
+IS_ORIGINAL_PROBLEM = False
 
 # whether to use disk to r/w the following CSV files:
 # (-) states, valid next actions and their respective pseudo-
@@ -23,21 +23,29 @@ PATH_SPRENRET_CSV = "C:/Temp/rlai-exercises/Chapter 4/data"
 # for purposes of quick visualization w/o a full code run
 # (dfSASP.csv, dfSp_Ren_Ret.csv).
 # Don't set this to TRUE if USE_DISK_FOR_CSV_DATA = False;
-GET_DATA_FROM_CSV = True
+GET_DATA_FROM_CSV = False
 
 # whether to load cached models from CSV files
 # for purposes of quick visualization w/o a full code run
 # (dfPi.csv, dfV.csv).
 # Don't set this to TRUE if USE_DISK_FOR_CSV_DATA = False;
-GET_MODEL_FROM_CSV = True
+GET_MODEL_FROM_CSV = False
 
 # what file numbers to use for loading the models from
 # dfPi.csv, dfV.csv.
 # Set both to -1 if GET_MODEL_FROM_CSV = False or to
 # the file prefix (int>=0) if GET_MODEL_FROM_CSV = True;
 # don't set this to TRUE if USE_DISK_FOR_CSV_DATA = False.
-PI_SEQ_NR = 5
-V_SEQ_NR = 6
+PI_SEQ_NR = -1
+V_SEQ_NR = -1
+
+# =========================================================
+# Constants not exposed to the notebook start here
+# =========================================================
+
+# sub-directory names for original and extended problems
+FOLDER_ORIG_PROB_NAME = "orig_problem"
+FOLDER_FULL_PROB_NAME = "full_problem"
 
 # file name prefixes
 FILE_SASP_PREFIX = "dfSASP"

@@ -17,15 +17,16 @@ from .constants import DFCOL_PI_STATE, DFCOL_PI_ACTION, DFCOL_PI_PROB
 from .constants import DFCOL_V_STATE, DFCOL_V_VALUE
 from .constants import MIN_NUMBER_OF_CARS_LOC_1, MIN_NUMBER_OF_CARS_LOC_2
 from .constants import MAX_NUMBER_OF_CARS_LOC_1, MAX_NUMBER_OF_CARS_LOC_2
+from .constants import IS_ORIGINAL_PROBLEM
 
-def init_policy_iteration(dfSASP, dfSp_Ren_Ret, pi_seq_nr=-1, v_seq_nr=-1, disk_allowed=False, dir_path=None):    
+def init_policy_iteration(dfSASP, dfSp_Ren_Ret, is_orig_problem, pi_seq_nr=-1, v_seq_nr=-1, disk_allowed=False, dir_path=None):    
     # if we need to load one or both of the two dataframes (dfPi, dfV)
     if(disk_allowed):
         if pi_seq_nr > -1:
-            dfPi = load_from_csv(FileType.Pi, seq_nr=pi_seq_nr, dir_path=dir_path)
+            dfPi = load_from_csv(FileType.Pi, is_orig_problem, seq_nr=pi_seq_nr, dir_path=dir_path)
             if dfPi.empty: pi_seq_nr = -1 # we need to start over, with seq_nr = 0
         if v_seq_nr > -1:
-            dfV = load_from_csv(FileType.V, seq_nr=v_seq_nr, dir_path=dir_path)
+            dfV = load_from_csv(FileType.V, is_orig_problem, seq_nr=v_seq_nr, dir_path=dir_path)
             if dfV.empty: v_seq_nr = -1 # we need to start over, with seq_nr = 0
     else:
         pi_seq_nr, v_seq_nr = -1, -1 # we need to start over, with seq_nr = 0
@@ -84,7 +85,7 @@ def init_policy_iteration(dfSASP, dfSp_Ren_Ret, pi_seq_nr=-1, v_seq_nr=-1, disk_
     
     return dfSASP, dfSp_Ren_Ret, dfV, dfPi, max(pi_seq_nr, v_seq_nr) + 1
     
-def policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr, disk_allowed=False, dir_path=None):
+def policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, is_original_problem, seq_nr, disk_allowed=False, dir_path=None):
     while True:
         delta = 0.
         v, new_v = 0., 0.
@@ -144,7 +145,7 @@ def policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr, disk_allowed=Fals
         if(delta - THETA < 0.): 
             # computed values are good enough
             if disk_allowed == True:
-                commit_to_csv(dfV, FileType.V, seq_nr=seq_nr, dir_path=dir_path)
+                commit_to_csv(dfV, FileType.V, is_original_problem, seq_nr=seq_nr, dir_path=dir_path)
                 seq_nr = seq_nr + 1
             print_status("values deemed good enough")
             break 
@@ -157,7 +158,7 @@ def policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr, disk_allowed=Fals
     dfPi, dfV = policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr, disk_allowed=disk_allowed, dir_path=dir_path)
     return dfPi, dfV
     
-def policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr, disk_allowed=False, dir_path=None):
+def policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, is_original_problem, seq_nr, disk_allowed=False, dir_path=None):
     delta = 0.
     v, new_v = 0., 0.
     policy_stable = True
@@ -242,7 +243,7 @@ def policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr, disk_allowed=Fal
     else:
         if disk_allowed == True:
             # a better policy was found, so policy evaluation must update the last computed values
-            commit_to_csv(dfPi, FileType.Pi, seq_nr=seq_nr, dir_path=dir_path)
+            commit_to_csv(dfPi, FileType.Pi, is_original_problem, seq_nr=seq_nr, dir_path=dir_path)
             seq_nr = seq_nr + 1
         
         print_status("a better policy was found, going for another value loop")
@@ -251,16 +252,20 @@ def policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr, disk_allowed=Fal
         
     return dfPi, dfV
 
-def policy_iteration(dfSASP, dfSp_Ren_Ret, pi_seq_nr=-1, v_seq_nr=-1, disk_allowed=None, dir_path=None):
+def policy_iteration(dfSASP, dfSp_Ren_Ret, is_orig_problem, pi_seq_nr=-1, v_seq_nr=-1, disk_allowed=None, dir_path=None):
     assert (abs(pi_seq_nr - v_seq_nr) == 1) or (pi_seq_nr == -1 and v_seq_nr == -1)
     if dir_path == None: dir_path = PATH_SPRENRET_CSV
     
     dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr = init_policy_iteration(
-        dfSASP, dfSp_Ren_Ret, pi_seq_nr=pi_seq_nr, v_seq_nr=v_seq_nr, disk_allowed=disk_allowed)
+        dfSASP, dfSp_Ren_Ret, is_orig_problem, pi_seq_nr=pi_seq_nr, v_seq_nr=v_seq_nr, disk_allowed=disk_allowed)
     if (pi_seq_nr > v_seq_nr) or (pi_seq_nr == -1 and v_seq_nr == -1):
-        dfPi, dfV = policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr, disk_allowed=disk_allowed, dir_path=dir_path)
+        dfPi, dfV = policy_evaluation(
+            dfSASP, dfSp_Ren_Ret, dfV, dfPi, is_orig_problem, 
+            v_seq_nr, disk_allowed=disk_allowed, dir_path=dir_path)
     elif pi_seq_nr < v_seq_nr:
-        dfPi, dfV = policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr, disk_allowed=disk_allowed, dir_path=dir_path)
+        dfPi, dfV = policy_improvement(
+            dfSASP, dfSp_Ren_Ret, dfV, dfPi, is_orig_problem, 
+            pi_seq_nr, disk_allowed=disk_allowed, dir_path=dir_path)
         
     return dfPi, dfV
 
@@ -269,10 +274,10 @@ if __name__ == '__main__':
     v_seq_nr, pi_seq_nr = -1, -1
     
     # Load data from CSV
-    dfSASP = load_from_csv(FileType.SASP)
-    dfSp_Ren_Ret = load_from_csv(FileType.Sp_Ren_Ret)
+    dfSASP = load_from_csv(FileType.SASP, IS_ORIGINAL_PROBLEM)
+    dfSp_Ren_Ret = load_from_csv(FileType.Sp_Ren_Ret, IS_ORIGINAL_PROBLEM)
     
-    dfPi, dfV = policy_iteration(dfSASP, dfSp_Ren_Ret, pi_seq_nr=pi_seq_nr, v_seq_nr=v_seq_nr, disk_allowed=True)
+    dfPi, dfV = policy_iteration(dfSASP, dfSp_Ren_Ret, IS_ORIGINAL_PROBLEM, pi_seq_nr=pi_seq_nr, v_seq_nr=v_seq_nr, disk_allowed=True)
     
     
     
