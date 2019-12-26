@@ -5,3 +5,5 @@ __pycache__
 */.vscode/
 .vscode.env
 */.vscode.env
+pandas/
+*/pandas/
