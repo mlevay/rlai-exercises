@@ -266,8 +266,8 @@ def prep_dfSpRenRet(is_orig_problem):
 
 # module testing code
 if __name__ == '__main__':
-#    dfSASP = prep_dfSASP(IS_ORIGINAL_PROBLEM)
-#    commit_to_csv(dfSASP, FileType.SASP, ORIGINAL_PROBLEM)
+    dfSASP = prep_dfSASP(IS_ORIGINAL_PROBLEM)
+    commit_to_csv(dfSASP, FileType.SASP, IS_ORIGINAL_PROBLEM)
     #print(dfSASP.head(20))
     
     dfSp_Ren_Ret = prep_dfSpRenRet(IS_ORIGINAL_PROBLEM)
