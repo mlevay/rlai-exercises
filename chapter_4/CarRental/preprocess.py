@@ -18,6 +18,7 @@ from .constants import EXP_VALUE_RETURNS_LOC_1, EXP_VALUE_RETURNS_LOC_2
 from .constants import MAX_NUMBER_OF_CARS_PER_TRANSFER
 from .constants import MIN_NUMBER_OF_CARS_LOC_1, MIN_NUMBER_OF_CARS_LOC_2
 from .constants import MAX_NUMBER_OF_CARS_LOC_1, MAX_NUMBER_OF_CARS_LOC_2
+from .constants import IS_ORIGINAL_PROBLEM
 from .probabilities import lookup_prob_vectorized
 from .rewards import compute_reward, compute_parking_fees, compute_transfer_fees
 
@@ -45,7 +46,7 @@ all_sub_states_a, all_sub_states_b = [], []
 all_states = []
 dict_states_a, dict_states_b = {}, {}
 
-def prep_dfSASP(is_orig_problem=None):
+def prep_dfSASP(is_orig_problem):
     """
     Populate a dataframe with all valid combinations of state and action taken following that state. 
     Validity is bound by the minimum and maximum number of cars each location can host, as well as 
@@ -132,11 +133,11 @@ def prep_dfSASP(is_orig_problem=None):
 
     # compute fees for a (incurred by transfer)
     #dfSASP[DFCOL_SASP_FEES] = abs(dfSASP[DFCOL_SASP_ACTION].map(dict_actions).astype(int)*UNIT_COST_OF_TRANSFER)
-    dfSASP[DFCOL_SASP_FEES] = dfSASP[DFCOL_SASP_ACTION].map(dict_actions).apply(compute_transfer_fees, is_orig_problem=is_orig_problem)
+    dfSASP[DFCOL_SASP_FEES] = dfSASP[DFCOL_SASP_ACTION].map(dict_actions).apply(compute_transfer_fees, args=(is_orig_problem,))
     
     return dfSASP
 
-def prep_dfSpRenRet(is_orig_problem=None):
+def prep_dfSpRenRet(is_orig_problem):
     """
     Populate a dataframe with all valid combinations of pseudo-state and rentals/returns. Validity is bound 
     by the minimum and maximum number of cars each location can host.
@@ -257,7 +258,7 @@ def prep_dfSpRenRet(is_orig_problem=None):
     
     dfSp_Ren_Ret[DFCOL_SPRENRET_FEES] = dfSp_Ren_Ret.apply(
         lambda d: compute_parking_fees(
-            d[DFCOL_SPRENRET_SNEXT_A], d[DFCOL_SPRENRET_SNEXT_B], is_orig_problem=is_orig_problem),
+            d[DFCOL_SPRENRET_SNEXT_A], d[DFCOL_SPRENRET_SNEXT_B], is_orig_problem),
         axis=1) 
     print_status("fees computed")
     
@@ -265,10 +266,10 @@ def prep_dfSpRenRet(is_orig_problem=None):
 
 # module testing code
 if __name__ == '__main__':
-#    dfSASP = prep_dfSASP()
-#    commit_to_csv(dfSASP, FileType.SASP)
+#    dfSASP = prep_dfSASP(IS_ORIGINAL_PROBLEM)
+#    commit_to_csv(dfSASP, FileType.SASP, ORIGINAL_PROBLEM)
     #print(dfSASP.head(20))
     
-    dfSp_Ren_Ret = prep_dfSpRenRet()
-    commit_to_csv(dfSp_Ren_Ret, FileType.Sp_Ren_Ret)
+    dfSp_Ren_Ret = prep_dfSpRenRet(IS_ORIGINAL_PROBLEM)
+    commit_to_csv(dfSp_Ren_Ret, FileType.Sp_Ren_Ret, IS_ORIGINAL_PROBLEM)
     #print(dfSp_Ren_Ret.head(20))
