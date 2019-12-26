@@ -2,10 +2,11 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
-from .common import commit_to_csv, get_state_name, get_state_components, load_from_csv, print_status
+from .common import FileType, commit_to_csv, load_from_csv
+from .common import get_state_name, get_state_components, print_status
 from .constants import PATH_SPRENRET_CSV
 from .constants import GAMMA, EPSILON, THETA
-from .constants import DEFAULT_VALUE
+from .constants import DEFAULT_ACTION, DEFAULT_VALUE
 from .constants import DFCOL_SASP_SORIG, DFCOL_SASP_ACTION, DFCOL_SASP_SPSEUDO, DFCOL_SASP_FEES
 from .constants import DFCOL_SPRENRET_SPSEUDO
 from .constants import DFCOL_SPRENRET_RENTALS_A, DFCOL_SPRENRET_RENTALS_B
@@ -18,18 +19,18 @@ from .constants import MIN_NUMBER_OF_CARS_LOC_1, MIN_NUMBER_OF_CARS_LOC_2
 from .constants import MAX_NUMBER_OF_CARS_LOC_1, MAX_NUMBER_OF_CARS_LOC_2
 
 def init_policy_iteration(dfSASP, dfSp_Ren_Ret, pi_seq_nr=-1, v_seq_nr=-1, disk_allowed=False, dir_path=None):
-    # TEMP: this is just to add a new column whenever code changes 
-    if not(DFCOL_SPRENRET_FEES in dfSp_Ren_Ret.columns):
-        dfSp_Ren_Ret[DFCOL_SPRENRET_FEES] = [0]*dfSp_Ren_Ret.shape[0]
+    # # TEMP: this is just to add a new column whenever code changes 
+    # if not(DFCOL_SPRENRET_FEES in dfSp_Ren_Ret.columns):
+    #     dfSp_Ren_Ret[DFCOL_SPRENRET_FEES] = [0]*dfSp_Ren_Ret.shape[0]
     
     # if we need to load one or both of the two dataframes (dfPi, dfV)
     if(disk_allowed):
         if pi_seq_nr > -1:
-            dfPi = load_from_csv("dfPi" + str(pi_seq_nr).zfill(2) + ".csv", dir_path=dir_path)
-            if dfPi == None: pi_seq_nr = -1 # we need to start over, with seq_nr = 0
+            dfPi = load_from_csv(FileType.Pi, seq_nr=pi_seq_nr, dir_path=dir_path)
+            if dfPi.empty: pi_seq_nr = -1 # we need to start over, with seq_nr = 0
         if v_seq_nr > -1:
-            dfV = load_from_csv("dfV" + str(v_seq_nr).zfill(2) + ".csv", dir_path=dir_path)
-            if dfV == None: v_seq_nr = -1 # we need to start over, with seq_nr = 0
+            dfV = load_from_csv(FileType.V, seq_nr=v_seq_nr, dir_path=dir_path)
+            if dfV.empty: v_seq_nr = -1 # we need to start over, with seq_nr = 0
     else:
         pi_seq_nr, v_seq_nr = -1, -1 # we need to start over, with seq_nr = 0
     
@@ -147,7 +148,7 @@ def policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr, disk_allowed=Fals
         if(delta - THETA < 0.): 
             # computed values are good enough
             if disk_allowed == True:
-                commit_to_csv(dfV, "dfV" + str(seq_nr).zfill(2) + ".csv", dir_path=dir_path)
+                commit_to_csv(dfV, FileType.V, seq_nr=seq_nr, dir_path=dir_path)
                 seq_nr = seq_nr + 1
             print_status("values deemed good enough")
             break 
@@ -245,7 +246,7 @@ def policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr, disk_allowed=Fal
     else:
         if disk_allowed == True:
             # a better policy was found, so policy evaluation must update the last computed values
-            commit_to_csv(dfPi, "dfPi" + str(seq_nr).zfill(2) + ".csv", dir_path=dir_path)
+            commit_to_csv(dfPi, FileType.Pi, seq_nr=seq_nr, dir_path=dir_path)
             seq_nr = seq_nr + 1
         
         print_status("a better policy was found, going for another value loop")
@@ -272,8 +273,8 @@ if __name__ == '__main__':
     v_seq_nr, pi_seq_nr = -1, -1
     
     # Load data from CSV
-    dfSASP = load_from_csv("dfSASP.csv")
-    dfSp_Ren_Ret = load_from_csv("dfSp_Ren_Ret.csv")
+    dfSASP = load_from_csv(FileType.SASP)
+    dfSp_Ren_Ret = load_from_csv(FileType.Sp_Ren_Ret)
     
     dfPi, dfV = policy_iteration(dfSASP, dfSp_Ren_Ret, pi_seq_nr=pi_seq_nr, v_seq_nr=v_seq_nr, disk_allowed=True)
     

@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from .common import commit_to_csv, get_state_name, print_status
+from .common import FileType, commit_to_csv
+from .common import get_state_name, print_status
 from .constants import DFCOL_SASP_SORIG, DFCOL_SASP_ACTION, DFCOL_SASP_SPSEUDO, DFCOL_SASP_FEES
 from .constants import DFCOL_SASP_SPSEUDO_A, DFCOL_SASP_SPSEUDO_B, DFCOL_SASP_IS_VALID
 from .constants import DFCOL_SPRENRET_SPSEUDO
@@ -12,11 +13,11 @@ from .constants import DFCOL_SPRENRET_PROB_RETURNS_A, DFCOL_SPRENRET_PROB_RETURN
 from .constants import DFCOL_SPRENRET_SNEXT, DFCOL_SPRENRET_PROBSRSA 
 from .constants import DFCOL_SPRENRET_SNEXT_A, DFCOL_SPRENRET_SNEXT_B
 from .constants import DFCOL_SPRENRET_REWARD, DFCOL_SPRENRET_FEES
+from .constants import EXP_VALUE_RENTALS_LOC_1, EXP_VALUE_RENTALS_LOC_2
+from .constants import EXP_VALUE_RETURNS_LOC_1, EXP_VALUE_RETURNS_LOC_2
 from .constants import MAX_NUMBER_OF_CARS_PER_TRANSFER
 from .constants import MIN_NUMBER_OF_CARS_LOC_1, MIN_NUMBER_OF_CARS_LOC_2
 from .constants import MAX_NUMBER_OF_CARS_LOC_1, MAX_NUMBER_OF_CARS_LOC_2
-from .constants import EXP_VALUE_RENTALS_LOC_1, EXP_VALUE_RENTALS_LOC_2
-from .constants import EXP_VALUE_RETURNS_LOC_1, EXP_VALUE_RETURNS_LOC_2
 from .probabilities import lookup_prob_vectorized
 from .rewards import compute_reward, compute_parking_fees, compute_transfer_fees
 
@@ -265,9 +266,9 @@ def prep_dfSpRenRet(is_orig_problem=None):
 # module testing code
 if __name__ == '__main__':
 #    dfSASP = prep_dfSASP()
-#    commit_to_csv(dfSASP, "dfSASP.csv")
+#    commit_to_csv(dfSASP, FileType.SASP)
     #print(dfSASP.head(20))
     
     dfSp_Ren_Ret = prep_dfSpRenRet()
-    commit_to_csv(dfSp_Ren_Ret, "dfSp_Ren_Ret.csv")
+    commit_to_csv(dfSp_Ren_Ret, FileType.Sp_Ren_Ret)
     #print(dfSp_Ren_Ret.head(20))

@@ -1,6 +1,6 @@
 # whether we're solving the original problem (Example 4.2) 
 # or for the additional requirements (Ex. 4.7);
-ORIGINAL_PROBLEM = False
+ORIGINAL_PROBLEM = True
 
 # whether to use disk to r/w the following CSV files:
 # (-) states, valid next actions and their respective pseudo-
@@ -34,14 +34,20 @@ GET_MODEL_FROM_CSV = True
 # what file numbers to use for loading the models from
 # dfPi.csv, dfV.csv.
 # Set both to -1 if GET_MODEL_FROM_CSV = False or to
-# the file numbers >=0 if GET_MODEL_FROM_CSV = True;
+# the file prefix (int>=0) if GET_MODEL_FROM_CSV = True;
 # don't set this to TRUE if USE_DISK_FOR_CSV_DATA = False.
-PI_SEQ_NR = -1
-V_SEQ_NR = -1
+PI_SEQ_NR = 5
+V_SEQ_NR = 6
 
-EPSILON = 0.01
+# file name prefixes
+FILE_SASP_PREFIX = "dfSASP"
+FILE_SPRENRET_PREFIX = "dfSp_Ren_Ret"
+FILE_PI_PREFIX = "dfPi"
+FILE_V_PREFIX = "dfV"
+
+EPSILON = 0.1
 GAMMA = 0.9
-THETA = 0.5
+THETA = 1.
 
 DEFAULT_ACTION = 5
 DEFAULT_VALUE = 0.

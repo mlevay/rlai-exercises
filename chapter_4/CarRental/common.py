@@ -1,10 +1,36 @@
 from datetime import datetime
+import enum
 import numpy as np
 import os
 import pandas as pd
 import scipy.special
 
+from .constants import FILE_SASP_PREFIX, FILE_SPRENRET_PREFIX, FILE_PI_PREFIX, FILE_V_PREFIX
 from .constants import PATH_SPRENRET_CSV
+
+
+class FileType(enum.Enum):
+    SASP = 1
+    Sp_Ren_Ret = 2
+    Pi = 3
+    V = 4
+    
+def _get_filename_noext(file_type: FileType):
+    file_name = ""
+    if file_type == FileType.SASP: file_name = FILE_SASP_PREFIX
+    elif file_type == FileType.Sp_Ren_Ret: file_name = FILE_SPRENRET_PREFIX
+    elif file_type == FileType.Pi: file_name = FILE_PI_PREFIX
+    elif file_type == FileType.V: file_name = FILE_V_PREFIX
+    
+    return file_name
+    
+def get_filename(file_type: FileType):
+    file_name = _get_filename_noext(file_type)
+    return file_name + ".csv"
+    
+def get_filename_with_postfix(file_type: FileType, seq_nr):
+    file_name = _get_filename_noext(file_type)
+    return file_name + str(seq_nr).zfill(2) + ".csv"
 
 def print_status(text):
     print(text, datetime.now().strftime("%H:%M:%S"))
@@ -15,10 +41,15 @@ def get_state_name(state_a, state_b):
 
 def get_state_components(state_name):
     """Obtain the individual components (# cars at location A and B) for a state name"""
-    return list(map(int, (state_name.split('_'))))
+    comps = list(map(int, (state_name.split('_'))))
+    return comps[0], comps[1]
+    #return list(map(int, (state_name.split('_'))))
 
-def commit_to_csv(df, file_name, dir_path=None):
+def commit_to_csv(df, file_type: FileType, seq_nr = 0, dir_path=None):
     """Commit a dataframe to CSV file"""
+    suffix_file = file_type in [FileType.SASP, FileType.Sp_Ren_Ret]
+    file_name = get_filename(file_type) if suffix_file else get_filename_with_postfix(file_type, seq_nr)
+    
     if dir_path == None: dir_path = PATH_SPRENRET_CSV
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
@@ -28,11 +59,14 @@ def commit_to_csv(df, file_name, dir_path=None):
     abs_file_name = os.path.join(dir_path, file_name)
     df.to_csv(path_or_buf=abs_file_name, sep='\t', encoding='utf-8', index=False)
     
-def load_from_csv(file_name, dir_path=None):
+def load_from_csv(file_type: FileType, seq_nr = 0, dir_path=None):
     """Load a dataframe from CSV file"""
+    suffix_file = file_type in [FileType.SASP, FileType.Sp_Ren_Ret]
+    file_name = get_filename(file_type) if suffix_file else get_filename_with_postfix(file_type, seq_nr)
+        
     if dir_path == None: dir_path = PATH_SPRENRET_CSV
     if os.path.exists == False: 
-        return None # this will signal that the data we are looking for doesn't exist
+        return pd.DataFrame() # this will signal that the data we are looking for doesn't exist
     elif os.path.isfile == False:
         raise FileNotFoundError("A folder with the file name you specified already exists. Please resolve the issue and run the code again.")
     
