@@ -18,11 +18,7 @@ from .constants import DFCOL_V_STATE, DFCOL_V_VALUE
 from .constants import MIN_NUMBER_OF_CARS_LOC_1, MIN_NUMBER_OF_CARS_LOC_2
 from .constants import MAX_NUMBER_OF_CARS_LOC_1, MAX_NUMBER_OF_CARS_LOC_2
 
-def init_policy_iteration(dfSASP, dfSp_Ren_Ret, pi_seq_nr=-1, v_seq_nr=-1, disk_allowed=False, dir_path=None):
-    # # TEMP: this is just to add a new column whenever code changes 
-    # if not(DFCOL_SPRENRET_FEES in dfSp_Ren_Ret.columns):
-    #     dfSp_Ren_Ret[DFCOL_SPRENRET_FEES] = [0]*dfSp_Ren_Ret.shape[0]
-    
+def init_policy_iteration(dfSASP, dfSp_Ren_Ret, pi_seq_nr=-1, v_seq_nr=-1, disk_allowed=False, dir_path=None):    
     # if we need to load one or both of the two dataframes (dfPi, dfV)
     if(disk_allowed):
         if pi_seq_nr > -1:
