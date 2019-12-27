@@ -29,7 +29,7 @@ GET_DATA_FROM_CSV = True
 # for purposes of quick visualization w/o a full code run
 # (dfPi.csv, dfV.csv).
 # Don't set this to TRUE if USE_DISK_FOR_CSV_DATA = False;
-GET_MODEL_FROM_CSV = True
+GET_MODEL_FROM_CSV = False
 
 # what file numbers to use for loading the models from
 # dfPi.csv, dfV.csv.
@@ -37,7 +37,7 @@ GET_MODEL_FROM_CSV = True
 # the file prefix (int>=0) if GET_MODEL_FROM_CSV = True;
 # don't set this to TRUE if USE_DISK_FOR_CSV_DATA = False.
 PI_SEQ_NR = -1
-V_SEQ_NR = 0
+V_SEQ_NR = -1
 
 # =========================================================
 # Constants not exposed to the notebook start here
@@ -55,7 +55,7 @@ FILE_V_PREFIX = "dfV"
 
 EPSILON = .05
 GAMMA = .9
-THETA = .1
+THETA = .01
 
 DEFAULT_ACTION = 5
 DEFAULT_VALUE = 0.

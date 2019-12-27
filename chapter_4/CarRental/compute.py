@@ -183,7 +183,7 @@ def policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, is_original_problem, seq
         # legitimate actions for the state vary dependent on mode
         # we'll iterate through all legitimate actions, ignoring current greedy policy
         legit_actions = dfState[DFCOL_PI_ACTION].tolist()
-        # and we'll iterate in a specific order, and later round to prefer smaller car transfers
+        # and we'll iterate in a specific order, and later round values to prefer smaller car transfers
         legit_actions = sorted(legit_actions, key=action_sort)
             
         for action in legit_actions:
