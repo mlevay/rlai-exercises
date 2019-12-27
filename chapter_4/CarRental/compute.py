@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 from .common import FileType, commit_to_csv, load_from_csv
-from .common import get_state_name, get_state_components, print_status
+from .common import action_sort, get_state_name, get_state_components, print_status
 from .constants import PATH_SPRENRET_CSV
 from .constants import GAMMA, EPSILON, THETA
 from .constants import DEFAULT_ACTION, DEFAULT_VALUE
@@ -183,6 +183,8 @@ def policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, is_original_problem, seq
         # legitimate actions for the state vary dependent on mode
         # we'll iterate through all legitimate actions, ignoring current greedy policy
         legit_actions = dfState[DFCOL_PI_ACTION].tolist()
+        # and we'll iterate in a specific order, and later round to prefer smaller car transfers
+        legit_actions = sorted(legit_actions, key=action_sort)
             
         for action in legit_actions:
             # the pseudo-state the original state and current action lead to, and the
@@ -219,7 +221,8 @@ def policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, is_original_problem, seq
                 )
             ).sum()
 
-            # if the computed state value is sufficiently larger than seen so far, then the current action is a maximizer
+            # if the computed state value is sufficiently larger than seen so far, then the current action is a maximizer;
+            # if it is not sufficiently larger, we stick with the previous maximizing action, which has a smaller car transfer number
             new_v = round(new_v, 5)
             if new_v - max_v > 0.:
                 max_v = new_v

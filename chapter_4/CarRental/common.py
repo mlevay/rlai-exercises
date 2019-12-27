@@ -84,6 +84,12 @@ def load_from_csv(file_type: FileType, is_orig_problem, seq_nr = 0, dir_path=Non
     
     return pd.read_csv(filepath_or_buffer=abs_file_name, sep='\t', encoding='utf-8')
 
+def action_sort(action_name: int):
+    """Serve as custom sorter for action names to be sorted by abs(# transfered cars).
+    This will return action names for -5, -4, ..., 0, ..., 4, 5 sorted by ascending absolute value. 
+    """
+    return abs(action_name - 5)
+
 
 # module testing code
 if __name__ == '__main__':

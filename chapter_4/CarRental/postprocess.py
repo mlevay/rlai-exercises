@@ -28,7 +28,7 @@ def transform_data(dfPi, dfV):
     
     # additionally, map action codes in dfPi_s_pivoted to # cars to be transferred
     num_actions = MAX_NUMBER_OF_CARS_PER_TRANSFER*2 + 1 # all whole numbers in [-n, n]
-    all_actions = np.array([list(range(-MAX_NUMBER_OF_CARS_PER_TRANSFER, MAX_NUMBER_OF_CARS_PER_TRANSFER+1))])
+    all_actions = np.array([list(range(-MAX_NUMBER_OF_CARS_PER_TRANSFER, MAX_NUMBER_OF_CARS_PER_TRANSFER+1, 1))])
     action_names = np.array([0] * num_actions)
     for i in range(num_actions):
         action_name = i
