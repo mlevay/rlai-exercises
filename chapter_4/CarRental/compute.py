@@ -219,8 +219,9 @@ def policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, is_original_problem, seq
                 )
             ).sum()
 
-            # if the computed state value is larger than seen so far, then the current action is a maximizer
-            if max_v - new_v < 0.:
+            # if the computed state value is sufficiently larger than seen so far, then the current action is a maximizer
+            new_v = round(new_v, 5)
+            if new_v - max_v > 0.:
                 max_v = new_v
                 new_a = action
                 
