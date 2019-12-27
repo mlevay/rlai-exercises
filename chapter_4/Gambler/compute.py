@@ -2,11 +2,11 @@ from .state import State, ValueList as svl
 from .sars import SARS as SARS
 from .common import print_status
 from .constants import MAX_STATE, MIN_STATE
-from .constants import GAMMA, PROB_HEADS, THETA
+from .constants import GAMMA, THETA
 from .action import Action, ValueList as sal
 
 
-def value_iteration():
+def value_iteration(prob_heads):
     gamma = GAMMA
     theta = THETA
     
@@ -25,9 +25,9 @@ def value_iteration():
                 action_subtotal = 0.
                 res_states = SARS._get_resulting_states(state, action)
                 sars0 = SARS(state, action, res_states[0]) # tails outcome
-                action_subtotal += ((1. - PROB_HEADS) * (sars0.reward + gamma * state_values[sars0.res_state.state_q]))
+                action_subtotal += ((1. - prob_heads) * (sars0.reward + gamma * state_values[sars0.res_state.state_q]))
                 sars1 = SARS(state, action, res_states[1]) # heads outcome
-                action_subtotal += (PROB_HEADS * (sars1.reward + gamma * state_values[sars1.res_state.state_q]))
+                action_subtotal += (prob_heads * (sars1.reward + gamma * state_values[sars1.res_state.state_q]))
 
                 if action_subtotal > max_value:
                     max_value = action_subtotal
@@ -51,9 +51,9 @@ def value_iteration():
             action_subtotal = 0.
             res_states = SARS._get_resulting_states(state, action)
             sars0 = SARS(state, action, res_states[0]) # tails outcome
-            action_subtotal += ((1 - PROB_HEADS) * (sars0.reward + gamma * state_values[sars0.res_state.state_q]))
+            action_subtotal += ((1 - prob_heads) * (sars0.reward + gamma * state_values[sars0.res_state.state_q]))
             sars1 = SARS(state, action, res_states[1]) # heads outcome
-            action_subtotal += (PROB_HEADS * (sars1.reward + gamma * state_values[sars1.res_state.state_q]))
+            action_subtotal += (prob_heads * (sars1.reward + gamma * state_values[sars1.res_state.state_q]))
 
             action_subtotal = round(action_subtotal, 5)
             if action_subtotal - max_value > 0.: # only prefer higher-q actions if they are significantly higher
