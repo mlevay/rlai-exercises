@@ -102,39 +102,41 @@ def policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, is_original_problem, seq_
             legit_actions = dfSASP.loc[dfSASP[DFCOL_SASP_SORIG] == orig_state, DFCOL_SASP_ACTION].tolist()
                 
             for action in legit_actions:
-                # the pseudo-state the original state and current action lead to, and the
-                # penalty incurred by that action
-                pseudo_state, action_penalty = dfSASP.loc[
-                    (dfSASP[DFCOL_SASP_SORIG] == orig_state) & (dfSASP[DFCOL_SASP_ACTION] == action), 
-                    [DFCOL_SASP_SPSEUDO, DFCOL_SASP_FEES]].values[0]
-                
-                # dataframe dfProbs holds the following columns from dfSp_Ren_Ret that correspond to the pseudo-state:
-                # (1) all valid rental&return count combinations across locations
-                # DFCOL_SPRENRET_RENTALS_A, DFCOL_SPRENRET_RENTALS_B, DFCOL_SPRENRET_RETURNS_A, DFCOL_SPRENRET_RETURNS_B, 
-                # (2) their corresponding next state
-                # DFCOL_SPRENRET_SNEXT
-                # (3) their respective Poisson probabilities
-                # DFCOL_SPRENRET_PROBSRSA, 
-                # (4) their respective reward
-                # DFCOL_SPRENRET_REWARD
-                dfProbs = dfSp_Ren_Ret.loc[
-                    dfSp_Ren_Ret[DFCOL_SPRENRET_SPSEUDO] == pseudo_state, 
-                    [DFCOL_SPRENRET_RENTALS_A, DFCOL_SPRENRET_RENTALS_B, 
-                    DFCOL_SPRENRET_RETURNS_A, DFCOL_SPRENRET_RETURNS_B, 
-                    DFCOL_SPRENRET_SNEXT,
-                    DFCOL_SPRENRET_PROBSRSA, 
-                    DFCOL_SPRENRET_REWARD,
-                    DFCOL_SPRENRET_FEES]]
-                
-                # loop through dfProbs and add to the state's value the probability-weighted average of 
-                # (reward plus discounted next-state value) over next states and their rewards
-                dfJoined = pd.merge(dfProbs, dfV, how="left", left_on=DFCOL_SPRENRET_SNEXT, right_on=DFCOL_V_STATE)
                 prob_pi = dfPi.loc[(dfPi[DFCOL_PI_STATE] == orig_state) & (dfPi[DFCOL_PI_ACTION] == action), DFCOL_PI_PROB].values[0]
-                new_v += ((
-                    dfJoined[DFCOL_SPRENRET_PROBSRSA] * (
-                        dfJoined[DFCOL_SPRENRET_REWARD] - action_penalty - dfJoined[DFCOL_SPRENRET_FEES] + GAMMA*dfJoined[DFCOL_V_VALUE]
-                    )
-                ).sum() * prob_pi)
+                if prob_pi > 0.: # the calculation only yields a non-0 value for non-0 probabilities per policy
+                    # the pseudo-state the original state and current action lead to, and the
+                    # penalty incurred by that action
+                    pseudo_state, action_penalty = dfSASP.loc[
+                        (dfSASP[DFCOL_SASP_SORIG] == orig_state) & (dfSASP[DFCOL_SASP_ACTION] == action), 
+                        [DFCOL_SASP_SPSEUDO, DFCOL_SASP_FEES]].values[0]
+                    
+                    # dataframe dfProbs holds the following columns from dfSp_Ren_Ret that correspond to the pseudo-state:
+                    # (1) all valid rental&return count combinations across locations
+                    # DFCOL_SPRENRET_RENTALS_A, DFCOL_SPRENRET_RENTALS_B, DFCOL_SPRENRET_RETURNS_A, DFCOL_SPRENRET_RETURNS_B, 
+                    # (2) their corresponding next state
+                    # DFCOL_SPRENRET_SNEXT
+                    # (3) their respective Poisson probabilities
+                    # DFCOL_SPRENRET_PROBSRSA, 
+                    # (4) their respective reward
+                    # DFCOL_SPRENRET_REWARD
+                    dfProbs = dfSp_Ren_Ret.loc[
+                        dfSp_Ren_Ret[DFCOL_SPRENRET_SPSEUDO] == pseudo_state, 
+                        [DFCOL_SPRENRET_RENTALS_A, DFCOL_SPRENRET_RENTALS_B, 
+                        DFCOL_SPRENRET_RETURNS_A, DFCOL_SPRENRET_RETURNS_B, 
+                        DFCOL_SPRENRET_SNEXT,
+                        DFCOL_SPRENRET_PROBSRSA, 
+                        DFCOL_SPRENRET_REWARD,
+                        DFCOL_SPRENRET_FEES]]
+                    
+                    # loop through dfProbs and add to the state's value the probability-weighted average of 
+                    # (reward plus discounted next-state value) over next states and their rewards
+                    dfJoined = pd.merge(dfProbs, dfV, how="left", left_on=DFCOL_SPRENRET_SNEXT, right_on=DFCOL_V_STATE)
+                
+                    new_v += ((
+                        dfJoined[DFCOL_SPRENRET_PROBSRSA] * (
+                            dfJoined[DFCOL_SPRENRET_REWARD] - action_penalty - dfJoined[DFCOL_SPRENRET_FEES] + GAMMA*dfJoined[DFCOL_V_VALUE]
+                        )
+                    ).sum() * prob_pi)
             
             # update dfV with the new value for this state
             dfV.loc[index, DFCOL_V_VALUE] = new_v
