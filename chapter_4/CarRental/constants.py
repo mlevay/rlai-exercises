@@ -36,8 +36,8 @@ GET_MODEL_FROM_CSV = True
 # Set both to -1 if GET_MODEL_FROM_CSV = False or to
 # the file prefix (int>=0) if GET_MODEL_FROM_CSV = True;
 # don't set this to TRUE if USE_DISK_FOR_CSV_DATA = False.
-PI_SEQ_NR = 5
-V_SEQ_NR = 6
+PI_SEQ_NR = -1
+V_SEQ_NR = 0
 
 # =========================================================
 # Constants not exposed to the notebook start here

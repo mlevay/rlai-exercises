@@ -155,7 +155,7 @@ def policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, is_original_problem, seq_
             print(dfV, delta)
             
     # there's a new value function => improve the policy next
-    dfPi, dfV = policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr, disk_allowed=disk_allowed, dir_path=dir_path)
+    dfPi, dfV = policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, is_original_problem, seq_nr, disk_allowed=disk_allowed, dir_path=dir_path)
     return dfPi, dfV
     
 def policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, is_original_problem, seq_nr, disk_allowed=False, dir_path=None):
@@ -248,7 +248,7 @@ def policy_improvement(dfSASP, dfSp_Ren_Ret, dfV, dfPi, is_original_problem, seq
         
         print_status("a better policy was found, going for another value loop")
         print(dfPi)
-        dfPi, dfV = policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, seq_nr, disk_allowed=disk_allowed, dir_path=dir_path)
+        dfPi, dfV = policy_evaluation(dfSASP, dfSp_Ren_Ret, dfV, dfPi, is_original_problem, seq_nr, disk_allowed=disk_allowed, dir_path=dir_path)
         
     return dfPi, dfV
 
@@ -261,11 +261,11 @@ def policy_iteration(dfSASP, dfSp_Ren_Ret, is_orig_problem, pi_seq_nr=-1, v_seq_
     if (pi_seq_nr > v_seq_nr) or (pi_seq_nr == -1 and v_seq_nr == -1):
         dfPi, dfV = policy_evaluation(
             dfSASP, dfSp_Ren_Ret, dfV, dfPi, is_orig_problem, 
-            v_seq_nr, disk_allowed=disk_allowed, dir_path=dir_path)
+            seq_nr, disk_allowed=disk_allowed, dir_path=dir_path)
     elif pi_seq_nr < v_seq_nr:
         dfPi, dfV = policy_improvement(
             dfSASP, dfSp_Ren_Ret, dfV, dfPi, is_orig_problem, 
-            pi_seq_nr, disk_allowed=disk_allowed, dir_path=dir_path)
+            seq_nr, disk_allowed=disk_allowed, dir_path=dir_path)
         
     return dfPi, dfV
 
