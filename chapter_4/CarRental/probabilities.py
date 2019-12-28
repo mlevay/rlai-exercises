@@ -21,6 +21,8 @@ def init_prob_lookup():
     prob_lookup[:,2] = get_probsrsa_vectorized(prob_lookup[:,0], prob_lookup[:,1])
     return prob_lookup
 
+prob_lookup = init_prob_lookup()
+
 def lookup_prob(number, exp_number):
     """Look up the probability of _number_ rentals/returns for rate=_exp_number_"""
     result = prob_lookup[:, 2][(prob_lookup[:,0].astype(int) == number) & (prob_lookup[:,1].astype(int) == exp_number)]
@@ -29,7 +31,7 @@ def lookup_prob(number, exp_number):
 def lookup_prob_vectorized(numbers, exp_number):
     """Vectorized Poisson probability lookup, stretched to ensure sum_prob = 1"""
     _, unique_indices = np.unique(numbers, return_index=True)
-    max_indices = np.where(numbers == np.amax(numbers))
+    max_indices = np.where(numbers == np.amax(numbers)) # take the index of the largest number
     probs = [0.] * len(numbers)
     for i in range(len(numbers)):
         if not np.isin(i, max_indices):
@@ -40,11 +42,3 @@ def lookup_prob_vectorized(numbers, exp_number):
         if np.isin(i, max_indices):
             probs[i] = 1. - probs_sum_so_far
     return probs
-
-def softmax_vectorized(x): 
-    """Compute softmax values for each sets of scores in x.""" 
-    #e_x = np.exp(x - np.max(x)) # mathematically more stable for larger values of x
-    e_x = np.exp(x) # but we expect x << 1 for all x, so this is more stable in our case
-    return e_x / np.unique(e_x).sum(axis=0)
-
-prob_lookup = init_prob_lookup()

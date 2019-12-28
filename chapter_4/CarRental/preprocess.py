@@ -212,26 +212,16 @@ def prep_dfSpRenRet(is_orig_problem):
             for i in range(4):
                 probs = lookup_prob_vectorized(dftemp.iloc[:, 1+i], exp_numbers[i])
                 dftemp.iloc[:, 5+i] = probs
-            
-            # # apply a softmax over each probability row
-            # for i in range(4):
-            #    probs = softmax_vectorized(dftemp.iloc[:, 5+i])
-            #    dftemp.iloc[:, 5+i] = probs
                 
             # compute and write the joint probability
             prob_rentals = np.multiply(dftemp.iloc[:, 5], dftemp.iloc[:, 6])
             prob_returns = np.multiply(dftemp.iloc[:, 7], dftemp.iloc[:, 8])
             dftemp.iloc[:, 9] = np.multiply(prob_rentals.iloc[:], prob_returns.iloc[:])
             
-            # # retire the granular probability columns
-            # dftemp = dftemp.iloc[:, [0,1,2,3,4,9,10,11]]
-            
             # compute the rewards for rentals
             dftemp.iloc[:, 10] = compute_reward(dftemp.iloc[:, 1] + dftemp.iloc[:, 2])   
-            # print(dftemp)
             
             dfSp_Ren_Ret = dfSp_Ren_Ret.append(pd.DataFrame(dftemp, columns=column_dict.keys()))
-            #print(dfSp_Ren_Ret) 
     print_status("dataframe creation done")
     
     dfSp_Ren_Ret.set_index([DFCOL_SPRENRET_SPSEUDO,
