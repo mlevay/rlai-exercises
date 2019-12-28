@@ -2,6 +2,7 @@ import enum
 import random
 
 from .card import Card, Cards, CardsState
+from .common import enum_to_string
 from .constants import ACTOR_DEALER, ACTOR_PLAYER
 
 
@@ -35,17 +36,17 @@ class Dealer(Actor):
         new_card_value = "1/11"
         if new_card != Card.Ace:
             new_card_value = str(new_card.card_value()) 
-        print("{} was dealt a card: {} (value = {})".format(actor, new_card, new_card_value))
+        print("{} is dealt a card: {} (value = {})".format(actor, enum_to_string(new_card), new_card_value))
         return actor.cards.add(new_card)
     
     def take_turn(self) -> (Action, CardsState):
         if self.cards.count_value() < 17:
             action = Action.Hit  
-            print(" -> {} takes action {}.".format(self, action))
+            print("{} takes action {}.".format(self, enum_to_string(action)))
             result = self.hit()
         else:
             action = Action.Stick 
-            print(" -> {} takes action {}.".format(self, action))
+            print("{} takes action {}.".format(self, enum_to_string(action)))
             result = self.stick()
 
         return (action, result)
@@ -58,11 +59,11 @@ class Player(Actor):
     def take_turn(self) -> (Action, CardsState):
         if self.cards.count_value() < 20:
             action = Action.Hit  
-            print(" -> {} takes action {}.".format(self, action))
+            print("{} takes action {}.".format(self, enum_to_string(action)))
             result = self.hit()
         else:
             action = Action.Stick 
-            print(" -> {} takes action {}.".format(self, action))
+            print("{} takes action {}.".format(self, enum_to_string(action)))
             result = self.stick()
 
         return (action, result)

@@ -5,15 +5,6 @@ from .card import Card, Cards, CardsState
 from .constants import ACTOR_DEALER, ACTOR_PLAYER
 
 
-game_state = {
-    "dealer_count" : 0,
-    "dealer_showing_card" : None,
-    "dealer_has_usable_ace" : False,
-    "player_count" : 0,
-    "player_showing_card" : None,
-    "player_has_usable_ace" : False,
-}
-
 class GameOutcome(enum.Enum):
     Ongoing = -2
     DealerWins = -1
@@ -68,8 +59,8 @@ class Game():
         assert (not (dealer_outcome == CardsState.Busted and player_outcome == CardsState.BlackJack))
         
         print(" -> Dealer state: {} ({}), Player state: {} ({})".format(
-            dealer_outcome, self.dealer.cards.count_value(), 
-            player_outcome, self.player.cards.count_value()))
+            str(dealer_outcome).split(".")[-1], self.dealer.cards.count_value(), 
+            str(player_outcome).split(".")[-1], self.player.cards.count_value()))
         if dealer_outcome == CardsState.Busted: return GameOutcome.PlayerWins
         if player_outcome == CardsState.Busted: return GameOutcome.DealerWins
         if dealer_outcome == CardsState.BlackJack and player_outcome == CardsState.BlackJack: return GameOutcome.Draw
