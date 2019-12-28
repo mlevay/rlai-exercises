@@ -1,6 +1,6 @@
 # whether we're solving the original problem (Example 4.2) 
 # or for the additional requirements (Ex. 4.7);
-IS_ORIGINAL_PROBLEM = True
+IS_ORIGINAL_PROBLEM = False
 
 # whether to use disk to r/w the following CSV files:
 # (-) states, valid next actions and their respective pseudo-
@@ -55,7 +55,7 @@ FILE_V_PREFIX = "dfV"
 
 EPSILON = .05
 GAMMA = .9
-THETA = .01
+THETA = .05
 
 DEFAULT_ACTION = 5
 DEFAULT_VALUE = 0.
