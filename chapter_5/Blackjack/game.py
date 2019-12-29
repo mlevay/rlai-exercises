@@ -3,6 +3,7 @@ import enum
 from .actor import Action, Actor, Dealer, Player
 from .card import Card, Cards, CardsState
 from .constants import ACTOR_DEALER, ACTOR_PLAYER
+from .playback import Playback, playback
 
 
 class GameOutcome(enum.Enum):
@@ -20,19 +21,21 @@ class Game():
         self.player.dealer = self.dealer
         
         self.player_on_turn = True
+        
+        self._log = False
     
     def _init(self) -> (CardsState, CardsState):
         # deal first 2 cards to dealer
-        self.dealer.deal_card(self.dealer)
-        dealer_init_outcome = self.dealer.deal_card(self.dealer)
+        self.dealer.deal_card(self.dealer, True)
+        dealer_init_outcome = self.dealer.deal_card(self.dealer, True)
         
         # deal first 2 cards to player
-        self.dealer.deal_card(self.player)
-        player_init_outcome = self.dealer.deal_card(self.player) 
+        self.dealer.deal_card(self.player, True)
+        player_init_outcome = self.dealer.deal_card(self.player, False) 
         
         return (dealer_init_outcome, player_init_outcome)
         
-    def _actor_takes_turn(self, dealer_state: CardsState, player_state: CardsState) -> (Action, CardsState, CardsState):
+    def _actor_takes_turn(self, dealer_state: CardsState, player_state: CardsState) -> (Actor, Action, CardsState, CardsState):
         """Lets the actor take an action.
         Returns (dealer's card state, player's card state)
         """
@@ -48,9 +51,9 @@ class Game():
         
         # return the outcome as (dealer's card state, player's card state)
         if isinstance(actor, Dealer): 
-            return (action, state, adversary_state) 
+            return (actor, action, state, adversary_state) 
         else:
-            return (action, adversary_state, state) 
+            return (actor, action, adversary_state, state) 
         
     # CardsState = [Unchanged, Busted, BlackJack, Safe]
     def _audit(self, dealer_outcome: CardsState, player_outcome: CardsState) -> GameOutcome:
@@ -75,6 +78,8 @@ class Game():
         return GameOutcome.Ongoing
         
     def play(self) -> GameOutcome:
+        playback.start_episode()
+        
         dealer_state, player_state = self._init()
         game_state = self._audit(dealer_state, player_state)
         if game_state != GameOutcome.Ongoing:
@@ -84,10 +89,26 @@ class Game():
         self.player_on_turn = True
         
         while True:
-              action, dealer_state, player_state = self._actor_takes_turn(dealer_state, player_state)
-              game_state = self._audit(dealer_state, player_state)
-              if game_state != GameOutcome.Ongoing:
-                  break
+            # register the actor and state
+            playback.register_actor(self.player_on_turn)
+            playback.register_state(
+                self.player.cards.count_value(), 
+                self.dealer.cards.showing_card.card_value(), 
+                self.player.cards.has_usable_ace)
+        
+            actor, action, dealer_state, player_state = self._actor_takes_turn(dealer_state, player_state)
+            # register action taken              
+            playback.register_action(action.value)
+            game_state = self._audit(dealer_state, player_state)
+
+            # register the reward 
+            reward = 0
+            if game_state == GameOutcome.DealerWins: reward = -1
+            elif game_state == GameOutcome.PlayerWins: reward = 1                
+            playback.register_reward(reward)
+            
+            if game_state != GameOutcome.Ongoing:
+                break
         return game_state
         
         
