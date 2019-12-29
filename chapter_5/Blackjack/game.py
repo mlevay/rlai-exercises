@@ -24,18 +24,21 @@ class Game():
         
         self._log = False
     
-    def _init(self) -> (CardsState, CardsState):
+    def _init(self, cards: []) -> (CardsState, CardsState):
+        # if prescribed cards were found, ensure they are passed on
+        prescribed_cards = [None]*4 if (not cards) else cards[:min(4,len(cards))]
+
         # deal first 2 cards to dealer
-        self.dealer.deal_card(self.dealer, True)
-        dealer_init_outcome = self.dealer.deal_card(self.dealer, True)
+        self.dealer.deal_card(self.dealer, prescribed_cards[0])
+        dealer_init_outcome = self.dealer.deal_card(self.dealer, prescribed_cards[1])
         
         # deal first 2 cards to player
-        self.dealer.deal_card(self.player, True)
-        player_init_outcome = self.dealer.deal_card(self.player, False) 
+        self.dealer.deal_card(self.player, prescribed_cards[2])
+        player_init_outcome = self.dealer.deal_card(self.player, prescribed_cards[3]) 
         
         return (dealer_init_outcome, player_init_outcome)
         
-    def _actor_takes_turn(self, dealer_state: CardsState, player_state: CardsState) -> (Actor, Action, CardsState, CardsState):
+    def _actor_takes_turn(self, dealer_state: CardsState, player_state: CardsState, card: Card = None) -> (Actor, Action, CardsState, CardsState):
         """Lets the actor take an action.
         Returns (dealer's card state, player's card state)
         """
@@ -44,7 +47,7 @@ class Game():
         adversary_state = dealer_state if self.player_on_turn == True else player_state
         
         # let the actor decide on an action and induce an outcome
-        action, state = actor.take_turn()
+        action, state = actor.take_turn(card)
         
         # see if a change in turns should take place
         if action == Action.Stick: self.player_on_turn = (not self.player_on_turn)
@@ -77,10 +80,10 @@ class Game():
             else: return GameOutcome.Draw
         return GameOutcome.Ongoing
         
-    def play(self) -> GameOutcome:
+    def play(self, cards: []) -> GameOutcome:
         playback.start_episode()
         
-        dealer_state, player_state = self._init()
+        dealer_state, player_state = self._init(cards)
         game_state = self._audit(dealer_state, player_state)
         if game_state != GameOutcome.Ongoing:
             return game_state
@@ -88,15 +91,18 @@ class Game():
         # it's for the player to take an action first
         self.player_on_turn = True
         
+        card_i = 4
         while True:
             # register the actor and state
             playback.register_actor(self.player_on_turn)
             playback.register_state(
                 self.player.cards.count_value(), 
-                self.dealer.cards.showing_card.card_value(), 
+                self.dealer.cards.showing_card.card_value(), # if an Ace, card_value() always returns 1
                 self.player.cards.has_usable_ace)
         
-            actor, action, dealer_state, player_state = self._actor_takes_turn(dealer_state, player_state)
+            # pass any further available prescribed cards, or None 
+            card = None if len(cards) <= card_i else cards[card_i]
+            actor, action, dealer_state, player_state = self._actor_takes_turn(dealer_state, player_state, card)
             # register action taken              
             playback.register_action(action.value)
             game_state = self._audit(dealer_state, player_state)
@@ -106,11 +112,12 @@ class Game():
             if game_state == GameOutcome.DealerWins: reward = -1
             elif game_state == GameOutcome.PlayerWins: reward = 1                
             playback.register_reward(reward)
+            playback.end_episode()
             
+            card_i += 1
+                
             if game_state != GameOutcome.Ongoing:
                 break
-        
-        playback.end_episode()
         
         return game_state
         

@@ -10,7 +10,7 @@ class Card(enum.Enum):
         
     def card_value(self) -> int:
         if self == Card.Ace:
-            return None # card value not statically defined
+            return 1 # card value as defined within the range of dealer's showing card
         elif self in [Card.Two, Card.Three, Card.Four, Card.Five, Card.Six, Card.Seven, Card.Eight, Card.Nine]:
             return self.value
         else:
@@ -34,7 +34,7 @@ class Cards():
         Returns the current card count.
         """
         card_sum = 0
-        sum_others = sum(i.card_value() for i in self._cards if i != Card.Ace)
+        sum_others = sum(i.card_value() for i in self._cards if i != Card.Ace) # card_value() always returns 1 for Ace
         count_aces = len(list(i for i in self._cards if i == Card.Ace))
         
         if count_aces > 0:

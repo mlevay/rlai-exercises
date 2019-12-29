@@ -19,20 +19,20 @@ class Actor():
     def __repr__(self):
         return ACTOR_DEALER if isinstance(self, Dealer) else ACTOR_PLAYER
         
-    def hit(self) -> CardsState:
-        return self.dealer.deal_card(self, False)
+    def hit(self, card: Card) -> CardsState:
+        return self.dealer.deal_card(self, card=card)
     
     def stick(self) -> CardsState:
         return self.dealer.deal_no_card(self)
     
-    def take_turn(self) -> (Action, CardsState):
+    def take_turn(self, card: Card) -> (Action, CardsState):
         return (Action.Stick, self.stick())
         
 class Dealer(Actor):
     def __init__(self):
         super().__init__()
         
-    def deal_card(self, actor: Actor, in_init: bool, card: Card = None) -> CardsState:
+    def deal_card(self, actor: Actor, card: Card=None) -> CardsState:
         new_card = random.choice(list(Card)) if card == None else card
         new_card_value = "1/11"
         if new_card != Card.Ace:
@@ -40,9 +40,6 @@ class Dealer(Actor):
         print("{} is dealt a card: {} (value = {})".format(actor, enum_to_string(new_card), new_card_value))
         
         result = actor.cards.add(new_card)
-        
-        # if in_init == False and isinstance(actor, Player) == True:
-        #     playback.register_state(actor.cards.count_value(), actor.dealer.cards.showing_card, actor.cards.has_usable_ace)
         return result
     
     def deal_no_card(self, actor: Actor) -> CardsState:
@@ -50,11 +47,11 @@ class Dealer(Actor):
         #     playback.register_state(actor.cards.count_value(), actor.dealer.cards.showing_card, actor.cards.has_usable_ace)
         return CardsState.Unchanged
     
-    def take_turn(self) -> (Action, CardsState):
+    def take_turn(self, card: Card) -> (Action, CardsState):
         if self.cards.count_value() < 17:
             action = Action.Hit  
             print("{} takes action {}.".format(self, enum_to_string(action)))
-            result = self.hit()
+            result = self.hit(card=card)
         else:
             action = Action.Stick 
             print("{} takes action {}.".format(self, enum_to_string(action)))
@@ -66,11 +63,11 @@ class Player(Actor):
     def __init__(self):
         super().__init__()
     
-    def take_turn(self) -> (Action, CardsState):
+    def take_turn(self, card: Card) -> (Action, CardsState):
         if self.cards.count_value() < 20:
             action = Action.Hit  
             print("{} takes action {}.".format(self, enum_to_string(action)))
-            result = self.hit()
+            result = self.hit(card=card)
         else:
             action = Action.Stick 
             print("{} takes action {}.".format(self, enum_to_string(action)))
