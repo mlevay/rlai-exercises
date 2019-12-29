@@ -1,6 +1,7 @@
 import itertools
+import pickle
 
-from .constants import MIN_CURRENT_SUM
+from .constants import MIN_CURRENT_SUM, PICKLE_FILE_PATH_EPISODES
 
 
 class Playback():
@@ -56,6 +57,8 @@ class Playback():
         valid_episodes = [len(ep.actors_k) > 0 for ep in self.episodes]
         self.episodes = list(itertools.compress(self.episodes, valid_episodes))
         
+        self.save()
+        
     def start_episode(self):
         self.episodes.append(Playback.Episode())
         
@@ -77,9 +80,13 @@ class Playback():
         self.episodes[-1].rewards_k_plus_1.append(reward_value)
         
     def save(self):
-        pass
+        output_file = open(PICKLE_FILE_PATH_EPISODES, 'wb')
+        pickle.dump(self.episodes, output_file)
+        output_file.close()
     
     def load(self):
-        pass
+        input_file = open(PICKLE_FILE_PATH_EPISODES, 'rb')
+        self.episodes = pickle.load(input_file)
+        input_file.close()
         
 playback = Playback()

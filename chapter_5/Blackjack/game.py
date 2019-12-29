@@ -2,7 +2,7 @@ import enum
 
 from .actor import Action, Actor, Dealer, Player
 from .card import Card, Cards, CardsState
-from .constants import ACTOR_DEALER, ACTOR_PLAYER
+from .constants import ACTOR_DEALER, ACTOR_PLAYER, VERBOSE
 from .playback import Playback, playback
 
 
@@ -64,9 +64,10 @@ class Game():
         assert (not (dealer_outcome == CardsState.BlackJack and player_outcome == CardsState.Busted))
         assert (not (dealer_outcome == CardsState.Busted and player_outcome == CardsState.BlackJack))
         
-        print(" -> Dealer state: {} ({}), Player state: {} ({})".format(
-            str(dealer_outcome).split(".")[-1], self.dealer.cards.count_value(), 
-            str(player_outcome).split(".")[-1], self.player.cards.count_value()))
+        if VERBOSE == True:
+            print(" -> Dealer state: {} ({}), Player state: {} ({})".format(
+                str(dealer_outcome).split(".")[-1], self.dealer.cards.count_value(), 
+                str(player_outcome).split(".")[-1], self.player.cards.count_value()))
         if dealer_outcome == CardsState.Busted: return GameOutcome.PlayerWins
         if player_outcome == CardsState.Busted: return GameOutcome.DealerWins
         if dealer_outcome == CardsState.BlackJack and player_outcome == CardsState.BlackJack: return GameOutcome.Draw

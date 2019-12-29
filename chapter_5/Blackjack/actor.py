@@ -3,7 +3,7 @@ import random
 
 from .card import Card, Cards, CardsState
 from .common import enum_to_string
-from .constants import ACTOR_DEALER, ACTOR_PLAYER
+from .constants import ACTOR_DEALER, ACTOR_PLAYER, VERBOSE
 from .playback import Playback, playback
 
 
@@ -34,10 +34,11 @@ class Dealer(Actor):
         
     def deal_card(self, actor: Actor, card: Card=None) -> CardsState:
         new_card = random.choice(list(Card)) if card == None else card
-        new_card_value = "1/11"
-        if new_card != Card.Ace:
-            new_card_value = str(new_card.card_value()) 
-        print("{} is dealt a card: {} (value = {})".format(actor, enum_to_string(new_card), new_card_value))
+        if VERBOSE == True:
+            new_card_value = "1/11"
+            if new_card != Card.Ace:
+                new_card_value = str(new_card.card_value()) 
+            print("{} is dealt a card: {} (value = {})".format(actor, enum_to_string(new_card), new_card_value))
         
         result = actor.cards.add(new_card)
         return result
@@ -50,11 +51,13 @@ class Dealer(Actor):
     def take_turn(self, card: Card) -> (Action, CardsState):
         if self.cards.count_value() < 17:
             action = Action.Hit  
-            print("{} takes action {}.".format(self, enum_to_string(action)))
+            if VERBOSE == True:
+                print("{} takes action {}.".format(self, enum_to_string(action)))
             result = self.hit(card=card)
         else:
             action = Action.Stick 
-            print("{} takes action {}.".format(self, enum_to_string(action)))
+            if VERBOSE == True:
+                print("{} takes action {}.".format(self, enum_to_string(action)))
             result = self.stick()
 
         return (action, result)
@@ -66,11 +69,13 @@ class Player(Actor):
     def take_turn(self, card: Card) -> (Action, CardsState):
         if self.cards.count_value() < 20:
             action = Action.Hit  
-            print("{} takes action {}.".format(self, enum_to_string(action)))
+            if VERBOSE == True:
+                print("{} takes action {}.".format(self, enum_to_string(action)))
             result = self.hit(card=card)
         else:
             action = Action.Stick 
-            print("{} takes action {}.".format(self, enum_to_string(action)))
+            if VERBOSE == True:
+                print("{} takes action {}.".format(self, enum_to_string(action)))
             result = self.stick()
 
         return (action, result)
