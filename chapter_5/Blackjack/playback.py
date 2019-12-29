@@ -1,3 +1,6 @@
+import itertools
+
+
 class Playback():
     class Episode():
         def __init__(self):
@@ -10,9 +13,22 @@ class Playback():
             
         def preprocess(self):
             # re-assign final reward to last player turn
-            
+            i = None
+            if len(self.actors_k) > 0 and self.actors_k[-1] == False:
+                i = len(self.actors_k) - 1
+                final_reward = self.rewards_k_plus_1[-1]
+                while self.actors_k[i] == False:
+                    i = i - 1
+                self.rewards_k_plus_1[i] = final_reward
+                
             # remove dealer turns
-            pass
+            player_turns = [i != False for i in self.actors_k]
+            self.actors_k = list(itertools.compress(self.actors_k, player_turns))
+            self.states_k_sum = list(itertools.compress(self.states_k_sum, player_turns))
+            self.states_k_showing_card_value = list(itertools.compress(self.states_k_showing_card_value, player_turns))
+            self.states_k_has_usable_ace = list(itertools.compress(self.states_k_has_usable_ace, player_turns))
+            self.actions_k = list(itertools.compress(self.actions_k, player_turns))
+            self.rewards_k_plus_1 = list(itertools.compress(self.rewards_k_plus_1, player_turns))
             
     def __init__(self):
         """Episodes for t=0, t=1, ..., t=T-1"""
@@ -20,6 +36,9 @@ class Playback():
         
     def start_episode(self):
         self.episodes.append(Playback.Episode())
+        
+    def end_episode(self):
+        self.episodes[-1].preprocess()
         
     def register_actor(self, is_player: bool):
         self.episodes[-1].actors_k.append(is_player)

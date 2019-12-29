@@ -109,6 +109,9 @@ class Game():
             
             if game_state != GameOutcome.Ongoing:
                 break
+        
+        playback.end_episode()
+        
         return game_state
         
         
