@@ -1,6 +1,8 @@
 import itertools
+import numpy as np
 import pickle
 
+from .common import pickle, unpickle
 from .constants import MIN_CURRENT_SUM, PICKLE_FILE_PATH_EPISODES
 
 
@@ -14,6 +16,19 @@ class Playback():
             self.actions_k = []
             self.rewards_k_plus_1 = []
             
+        def __getstate__(self):
+            # Copy the object's state from self.__dict__ which contains
+            # all our instance attributes. 
+            state = self.__dict__.copy()
+            # Remove the unneeded entries.
+            del state['actors_k']
+            return state
+            
+        def __setstate__(self, state):
+            # Restore instance attributes (i.e., filename and lineno).
+            self.__dict__.update(state)
+            self.actors_k = [True] * len(self.actions_k)
+            
         def preprocess(self):
             # re-assign final reward to last player turn
             i = None
@@ -25,7 +40,7 @@ class Playback():
                 self.rewards_k_plus_1[i] = final_reward
                 
             # remove various steps based on filters:
-            # remove first steps until player hast at least MIN_CURRENT_SUM cards
+            # remove first steps until player has at least MIN_CURRENT_SUM cards
             large_enough_turns = [True] * len(self.actors_k)
             if len(self.actors_k) > 0 and self.states_k_sum[0] < MIN_CURRENT_SUM:
                 for i in range(len(self.actors_k)):
@@ -38,7 +53,7 @@ class Playback():
             # remove dealer turns
             player_turns = [i != False for i in self.actors_k]
             
-            valid_turns = player_turns and large_enough_turns
+            valid_turns = (np.array(player_turns) & np.array(large_enough_turns)).tolist()
             self.actors_k = list(itertools.compress(self.actors_k, valid_turns))
             self.states_k_sum = list(itertools.compress(self.states_k_sum, valid_turns))
             self.states_k_showing_card_value = list(itertools.compress(self.states_k_showing_card_value, valid_turns))
@@ -49,9 +64,10 @@ class Playback():
     def __init__(self):
         """Episodes for t=0, t=1, ..., t=T-1"""
         self.episodes = []
+        self.pi = np.array([])
         
-    def start(self):
-        pass
+    def start(self, pi):
+        self.pi = pi
     
     def end(self):
         valid_episodes = [len(ep.actors_k) > 0 for ep in self.episodes]
@@ -80,13 +96,9 @@ class Playback():
         self.episodes[-1].rewards_k_plus_1.append(reward_value)
         
     def save(self):
-        output_file = open(PICKLE_FILE_PATH_EPISODES, 'wb')
-        pickle.dump(self.episodes, output_file)
-        output_file.close()
+        pickle(PICKLE_FILE_PATH_EPISODES, self.episodes)
     
     def load(self):
-        input_file = open(PICKLE_FILE_PATH_EPISODES, 'rb')
-        self.episodes = pickle.load(input_file)
-        input_file.close()
+        return unpickle(PICKLE_FILE_PATH_EPISODES)
         
 playback = Playback()
