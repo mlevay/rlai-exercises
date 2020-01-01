@@ -26,15 +26,34 @@ def play_one_game(my_game: game.Game, cards: []=[]):
         print()
 
 def produce_test_data(pi):
-    i = 0
-    total = 1000000
+    i, j = 0, 0
+    total = 500000
     start_time = time.time()
+    cards = []
+    
+    # cards = [
+    #     [Card.Nine, Card.Queen, Card.Ace, Card.Queen],
+    #     [Card.Queen, Card.Nine, Card.Four, Card.Ace, Card.Five],
+    #     [Card.Ace, Card.King, Card.Eight, Card.Three],
+    #     [Card.Jack, Card.Five, Card.King, Card.Queen, Card.Six],
+    #     [Card.Jack, Card.Five, Card.King, Card.Queen, Card.Five, Card.Ace],
+    #     [Card.Ace, Card.Eight, Card.King, Card.Queen, Card.Two, Card.Ace, Card.Nine],
+    #     [Card.King, Card.Queen, Card.Jack, Card.Five, Card.Six],
+    #     [Card.King, Card.Queen, Card.Jack, Card.Five, Card.Five],
+    #     [Card.King, Card.Queen, Card.Ace, Card.Eight, Card.Two],
+    #     [Card.King, Card.Two, Card.Ace, Card.Six, Card.Eight, Card.Six]
+    # ]
     
     playback.start(pi)
     my_game = game.Game()
     while i < total:
-        play_one_game(my_game=my_game)
-        if len(playback.episodes[-1].actors_k) > 0: i+=1
+        if len(cards) > j:
+            play_one_game(my_game=my_game, cards=cards[j])
+            j += 1
+        else:
+            play_one_game(my_game=my_game)
+        if len(playback.episodes[-1].actors_k) > 0: 
+            i += 1
     playback.end()
     
     elapsed_time = time.time() - start_time
@@ -59,11 +78,10 @@ if __name__ == "__main__":
     #produce_test_data(pi)
     
     episodes = playback.load()
-    mcp.compute(episodes)
+    #mcp.compute(episodes)
     
     # pivot data for has_usable_ace = 1
     q = mcp._v[np.ix_(mcp._v[:,2].astype(int) == 1, (0,1,3))]
-    #q = mcp._v[np.ix_((mcp._v[:,2].astype(int) == 1) & (mcp._v[:,0].astype(int) != 21), (0,1,3))]
     dfQ = pd.DataFrame(
         data=q[:, :], # values
         index=[i for i in range(1, len(q) + 1)], # new 1st column as index
@@ -74,7 +92,6 @@ if __name__ == "__main__":
     
     # pivot data for has_usable_ace = 0
     q = mcp._v[np.ix_(mcp._v[:,2].astype(int) == 0, (0,1,3))]
-    #q = mcp._v[np.ix_((mcp._v[:,2].astype(int) == 1) & (mcp._v[:,0].astype(int) != 21), (0,1,3))]
     dfQ = pd.DataFrame(
         data=q[:, :], # values
         index=[i for i in range(1, len(q) + 1)], # new 1st column as index
