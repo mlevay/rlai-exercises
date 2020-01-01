@@ -24,7 +24,7 @@ class Actor():
         return self.dealer.deal_card(self)
     
     def stick(self) -> CardsState:
-        return CardsState.Unchanged
+        return self.dealer.deal_no_card(self)
     
     def take_turn(self) -> (Action, CardsState):
         return (Action.Stick, self.stick())
@@ -57,6 +57,10 @@ class Dealer(Actor):
         
         result = actor.cards.add(new_card)
         return result
+    
+    def deal_no_card(self, actor: Actor) -> CardsState:
+        actor.cards.count_value() # ensure flags like has_usable_ace are set correctly
+        return CardsState.Unchanged
     
     def take_turn(self) -> (Action, CardsState):
         if self.cards.count_value() < DEALER_STICKS_AT:

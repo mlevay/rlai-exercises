@@ -5,13 +5,13 @@ from .constants import MIN_CURRENT_SUM, MAX_CURRENT_SUM
 
 class Card(enum.Enum):
     Ace = 1
-    Two, Three, Four, Five, Six, Seven, Eight, Nine = 2, 3, 4, 5, 6, 7, 8, 9
+    Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten = 2, 3, 4, 5, 6, 7, 8, 9, 10
     Jack, Queen, King = 10, 11, 12
         
     def card_value(self) -> int:
         if self == Card.Ace:
             return 1 # card value as defined within the range of dealer's showing card
-        elif self in [Card.Two, Card.Three, Card.Four, Card.Five, Card.Six, Card.Seven, Card.Eight, Card.Nine]:
+        elif self in [Card.Two, Card.Three, Card.Four, Card.Five, Card.Six, Card.Seven, Card.Eight, Card.Nine, Card.Ten]:
             return self.value
         else:
             return 10
@@ -19,8 +19,8 @@ class Card(enum.Enum):
 class CardsState(enum.Enum):
     Unchanged = -2
     Busted = -1
-    BlackJack = 0
-    Safe = 1
+    Safe = 0
+    BlackJackByFullCount = 1
 
 class Cards():
     def __init__(self):
@@ -59,7 +59,7 @@ class Cards():
         if self.showing_card == None: self.showing_card = card
 
         card_sum = self.count_value()
-        if card_sum == MAX_CURRENT_SUM: return CardsState.BlackJack
+        if card_sum == MAX_CURRENT_SUM: return CardsState.BlackJackByFullCount
         if card_sum > MAX_CURRENT_SUM: return CardsState.Busted
-        return CardsState.Safe
+        else: return CardsState.Safe
         

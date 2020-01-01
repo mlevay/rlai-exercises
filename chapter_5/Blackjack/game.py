@@ -2,15 +2,18 @@ import enum
 
 from .actor import Action, Actor, Dealer, Player
 from .card import Card, Cards, CardsState
-from .constants import ACTOR_DEALER, ACTOR_PLAYER, VERBOSE
+from .constants import ACTOR_DEALER, ACTOR_PLAYER
+from .constants import MAX_CURRENT_SUM, VERBOSE
 from .playback import Playback, playback
 
 
 class GameOutcome(enum.Enum):
-    Ongoing = -2
+    Ongoing = -3
+    DealerReachesFullCount = -2
     DealerWins = -1
     Draw = 0
-    PlayerWins = 1
+    PlayerReachesFullCount = 1
+    PlayerWins = 2
 
 class Game():
     def __init__(self):
@@ -31,13 +34,13 @@ class Game():
         
         # deal first 2 cards to dealer
         self.dealer.deal_card(self.dealer)
-        dealer_init_outcome = self.dealer.deal_card(self.dealer)
+        dealer_state = self.dealer.deal_card(self.dealer)
         
         # deal first 2 cards to player
         self.dealer.deal_card(self.player)
-        player_init_outcome = self.dealer.deal_card(self.player) 
+        player_state = self.dealer.deal_card(self.player) 
         
-        return (dealer_init_outcome, player_init_outcome)
+        return (dealer_state, player_state)
         
     def _actor_takes_turn(self, dealer_state: CardsState, player_state: CardsState) -> (Actor, Action, CardsState, CardsState):
         """Lets the actor take an action.
@@ -62,24 +65,33 @@ class Game():
     # CardsState = [Unchanged, Busted, BlackJack, Safe]
     def _audit(self, dealer_outcome: CardsState, player_outcome: CardsState) -> GameOutcome:
         assert (not (dealer_outcome == CardsState.Busted and player_outcome == CardsState.Busted))
-        assert (not (dealer_outcome == CardsState.BlackJack and player_outcome == CardsState.Busted))
-        assert (not (dealer_outcome == CardsState.Busted and player_outcome == CardsState.BlackJack))
+        assert (not (dealer_outcome == CardsState.BlackJackByFullCount and player_outcome == CardsState.Busted))
+        assert (not (dealer_outcome == CardsState.Busted and player_outcome == CardsState.BlackJackByFullCount))
         
         if VERBOSE == True:
             print(" -> Dealer state: {} ({}), Player state: {} ({})".format(
                 str(dealer_outcome).split(".")[-1], self.dealer.cards.count_value(), 
                 str(player_outcome).split(".")[-1], self.player.cards.count_value()))
+            
+        # the following represent conditions under which count=21 can no longer be reached
         if dealer_outcome == CardsState.Busted: return GameOutcome.PlayerWins
         if player_outcome == CardsState.Busted: return GameOutcome.DealerWins
-        if dealer_outcome == CardsState.BlackJack and player_outcome == CardsState.BlackJack: return GameOutcome.Draw
-        if dealer_outcome == CardsState.BlackJack: return GameOutcome.DealerWins
-        if player_outcome == CardsState.BlackJack: return GameOutcome.PlayerWins
+        if player_outcome == CardsState.BlackJackByFullCount and \
+            dealer_outcome == CardsState.BlackJackByFullCount: return GameOutcome.Draw # possible after _init()
+        if dealer_outcome == CardsState.Unchanged and self.dealer.cards.count_value() == MAX_CURRENT_SUM:
+            return GameOutcome.DealerWins
+        if player_outcome == CardsState.Unchanged and self.player.cards.count_value() == MAX_CURRENT_SUM:
+            return GameOutcome.PlayerWins
         if dealer_outcome == CardsState.Unchanged and player_outcome == CardsState.Unchanged:
             dealer_count = self.dealer.cards.count_value()
             player_count = self.player.cards.count_value()
             if dealer_count > player_count: return GameOutcome.DealerWins
             if dealer_count < player_count: return GameOutcome.PlayerWins
             else: return GameOutcome.Draw
+        # the following represents conditions under which count=21 may still be reached;
+        # this includes when exactly one of the two actors has reached 21 already
+        if player_outcome == CardsState.BlackJackByFullCount: return GameOutcome.PlayerReachesFullCount
+        if dealer_outcome == CardsState.BlackJackByFullCount: return GameOutcome.DealerReachesFullCount
         return GameOutcome.Ongoing
         
     def play(self, cards: []) -> GameOutcome:
@@ -88,8 +100,12 @@ class Game():
         
         dealer_state, player_state = self._init(cards)
         game_state = self._audit(dealer_state, player_state)
-        if game_state != GameOutcome.Ongoing:
-            return game_state
+        if game_state != GameOutcome.Ongoing: # max. 1 actor has reached count=21 in _init()
+            if game_state == GameOutcome.DealerReachesFullCount:
+                return GameOutcome.DealerWins
+            if game_state == GameOutcome.PlayerReachesFullCount:
+                return GameOutcome.PlayerWins
+            return game_state # end the game
         
         # it's for the player to take an action first
         self.player_on_turn = True
@@ -113,7 +129,10 @@ class Game():
             elif game_state == GameOutcome.PlayerWins: reward = 1                
             playback.register_reward(reward)
                 
-            if game_state != GameOutcome.Ongoing:
+            if game_state not in [
+                GameOutcome.Ongoing, 
+                GameOutcome.DealerReachesFullCount, 
+                GameOutcome.PlayerReachesFullCount]:
                 break
 
         playback.end_episode()        

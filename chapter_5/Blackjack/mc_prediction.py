@@ -85,10 +85,4 @@ class MonteCarloPrediction():
                     row[3] = V + ((G - V)/N)
                     
                     self._v[index,:] = row
-            
-        indices_max_rows = np.where(self._v[:, 0].astype(int) == MAX_CURRENT_SUM)[0]
-        for ind in indices_max_rows:
-            max_row = self._v[ind, :]
-            max_row[3] = 1.
-            self._v[ind, :] = max_row
         self.save_v(self._v)
