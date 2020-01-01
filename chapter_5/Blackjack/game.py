@@ -102,9 +102,9 @@ class Game():
         game_state = self._audit(dealer_state, player_state)
         if game_state != GameOutcome.Ongoing: # max. 1 actor has reached count=21 in _init()
             if game_state == GameOutcome.DealerReachesFullCount:
-                return GameOutcome.DealerWins
+                return GameOutcome.DealerWins # dealer has a natural
             if game_state == GameOutcome.PlayerReachesFullCount:
-                return GameOutcome.PlayerWins
+                return GameOutcome.PlayerWins # player has a natural
             return game_state # end the game
         
         # it's for the player to take an action first

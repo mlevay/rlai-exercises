@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 #import seaborn as sns
 
 def plot_Q(dfQ_pivoted):
-    fig = plt.figure()
+    fig = plt.figure(figsize=[10, 4])
     ax = plt.axes(projection='3d')
 
     X = dfQ_pivoted.columns.astype(int)
