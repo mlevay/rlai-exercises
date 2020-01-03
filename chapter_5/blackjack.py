@@ -6,6 +6,7 @@ import time
 from Blackjack.card import Card
 from Blackjack.constants import VERBOSE
 from Blackjack import game
+from Blackjack import game_probs
 from Blackjack import mc_prediction
 from Blackjack.playback import Playback, playback
 from Blackjack import plot
@@ -19,7 +20,7 @@ def play_one_game(my_game: game.Game, cards: []=[]):
         if len(playback.episodes) > 0:
             print(playback.episodes[-1].actors_k)
             print(playback.episodes[-1].states_k_sum)
-            print(playback.episodes[-1].states_k_showing_card_value)
+            print(playback.episodes[-1].states_k_upcard_value)
             print(playback.episodes[-1].states_k_has_usable_ace)
             print(playback.episodes[-1].actions_k)
             print(playback.episodes[-1].rewards_k_plus_1)
@@ -32,6 +33,7 @@ def produce_test_data(pi):
     cards = []
     
     # cards = [
+    #     [Card.Ten, Card.Four, Card.Queen, Card.Four, Card.Jack],
     #     [Card.Nine, Card.Queen, Card.Ace, Card.Queen],
     #     [Card.Queen, Card.Nine, Card.Four, Card.Ace, Card.Five],
     #     [Card.Ace, Card.King, Card.Eight, Card.Three],
@@ -65,29 +67,32 @@ def produce_test_data(pi):
             print("Episode:")
             print(episode.actors_k)
             print(episode.states_k_sum)
-            print(episode.states_k_showing_card_value)
+            print(episode.states_k_upcard_value)
             print(episode.states_k_has_usable_ace)
             print(episode.actions_k)
             print(episode.rewards_k_plus_1)
 
 if __name__ == "__main__":
+    #game_probs.source_cards()
+    
     mcp = mc_prediction.MonteCarloPrediction()
     pi = mcp.load_pi()
     v = mcp.load_v()
     
-    #produce_test_data(pi)
+    produce_test_data(pi)
     
     episodes = playback.load()
-    #mcp.compute(episodes)
+    mcp.compute(episodes)
     
     # pivot data for has_usable_ace = 1
     q = mcp._v[np.ix_(mcp._v[:,2].astype(int) == 1, (0,1,3))]
     dfQ = pd.DataFrame(
         data=q[:, :], # values
         index=[i for i in range(1, len(q) + 1)], # new 1st column as index
-        columns=["states_k_sum", "states_k_showing_card_value", "rewards_k_plus_1"]
+        columns=["states_k_sum", "states_k_upcard_value", "rewards_k_plus_1"]
     )
-    dfQ_pivoted = dfQ.pivot(index="states_k_sum", columns="states_k_showing_card_value", values="rewards_k_plus_1")
+    dfQ_pivoted = dfQ.pivot(
+        index="states_k_sum", columns="states_k_upcard_value", values="rewards_k_plus_1")
     plot.plot_Q(dfQ_pivoted)
     
     # pivot data for has_usable_ace = 0
@@ -95,9 +100,9 @@ if __name__ == "__main__":
     dfQ = pd.DataFrame(
         data=q[:, :], # values
         index=[i for i in range(1, len(q) + 1)], # new 1st column as index
-        columns=["states_k_sum", "states_k_showing_card_value", "rewards_k_plus_1"]
+        columns=["states_k_sum", "states_k_upcard_value", "rewards_k_plus_1"]
     )
-    dfQ_pivoted = dfQ.pivot(index="states_k_sum", columns="states_k_showing_card_value", values="rewards_k_plus_1")
+    dfQ_pivoted = dfQ.pivot(index="states_k_sum", columns="states_k_upcard_value", values="rewards_k_plus_1")
     plot.plot_Q(dfQ_pivoted)
     
     

@@ -6,7 +6,7 @@ from .constants import MIN_CURRENT_SUM, MAX_CURRENT_SUM
 class Card(enum.Enum):
     Ace = 1
     Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten = 2, 3, 4, 5, 6, 7, 8, 9, 10
-    Jack, Queen, King = 10, 11, 12
+    Jack, Queen, King = 11, 12, 13
         
     def card_value(self) -> int:
         if self == Card.Ace:
@@ -17,16 +17,19 @@ class Card(enum.Enum):
             return 10
         
 class CardsState(enum.Enum):
-    Unchanged = -2
+    Stuck = -2
     Busted = -1
     Safe = 0
-    BlackJackByFullCount = 1
+    MaxCnt = 1
 
 class Cards():
     def __init__(self):
+        self.reset()
+        
+    def reset(self):
         self._cards = []
         self.has_usable_ace = False
-        self.showing_card = None
+        self.upcard = None
         self.state = CardsState.Safe
         
     def count_value(self) -> int:
@@ -56,10 +59,10 @@ class Cards():
         Adds a card to the actor's cards and re-counts cards.
         """
         self._cards.append(card)
-        if self.showing_card == None: self.showing_card = card
+        if self.upcard == None: self.upcard = card
 
         card_sum = self.count_value()
-        if card_sum == MAX_CURRENT_SUM: return CardsState.BlackJackByFullCount
+        if card_sum == MAX_CURRENT_SUM: return CardsState.MaxCnt
         if card_sum > MAX_CURRENT_SUM: return CardsState.Busted
         else: return CardsState.Safe
         

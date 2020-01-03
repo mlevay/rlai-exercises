@@ -14,23 +14,27 @@ class Action(enum.Enum):
 
 class Actor():
     def __init__(self):
-        self.cards = Cards()        
         self.dealer = None
+        self.reset_cards()
         
     def __repr__(self):
         return ACTOR_DEALER if isinstance(self, Dealer) else ACTOR_PLAYER
         
-    def hit(self) -> CardsState:
-        return self.dealer.deal_card(self)
+    def hit(self):
+        self.set_card_state(self.dealer.deal_card(self))
     
-    def stick(self) -> CardsState:
-        return self.dealer.deal_no_card(self)
+    def stick(self):
+        self.set_card_state(self.dealer.deal_no_card(self))
+        
+    def set_card_state(self, card_state: CardsState):
+        self.card_state = card_state
     
-    def take_turn(self) -> (Action, CardsState):
-        return (Action.Stick, self.stick())
+    # def take_turn(self) -> (Action, CardsState):
+    #     return (Action.Stick, self.stick())
     
     def reset_cards(self):
-        self.cards = Cards()
+        self.cards = Cards()        
+        self.card_state = CardsState.Safe
         
 class Dealer(Actor):
     def __init__(self):
@@ -53,28 +57,27 @@ class Dealer(Actor):
             new_card_value = "1/11"
             if new_card != Card.Ace:
                 new_card_value = str(new_card.card_value()) 
-            print("{} is dealt a card: {} (value = {})".format(actor, enum_to_string(new_card), new_card_value))
+            print("{} <- {} (value = {})".format(str(actor).upper(), enum_to_string(new_card).upper(), new_card_value))
         
-        result = actor.cards.add(new_card)
-        return result
+        return actor.cards.add(new_card)
     
     def deal_no_card(self, actor: Actor) -> CardsState:
         actor.cards.count_value() # ensure flags like has_usable_ace are set correctly
-        return CardsState.Unchanged
+        return CardsState.Stuck
     
-    def take_turn(self) -> (Action, CardsState):
+    def take_turn(self) -> Action:
         if self.cards.count_value() < DEALER_STICKS_AT:
             action = Action.Hit  
             if VERBOSE == True:
-                print("{} takes action {}.".format(self, enum_to_string(action)))
-            result = self.hit()
+                print(".. {}.{}()".format(str(self).upper(), enum_to_string(action).upper()))
+            self.hit()
         else:
             action = Action.Stick 
             if VERBOSE == True:
-                print("{} takes action {}.".format(self, enum_to_string(action)))
-            result = self.stick()
+                print(".. {}.{}()".format(str(self).upper(), enum_to_string(action).upper()))
+            self.stick()
 
-        return (action, result)
+        return action
         
 class Player(Actor):
     def __init__(self):
@@ -84,27 +87,27 @@ class Player(Actor):
     def set_policy(self, pi):
         self._policy = pi
     
-    def take_turn(self) -> (Action, CardsState):
+    def take_turn(self) -> Action:
         assert self._policy.size != 0
         
         p_card_sum = self.cards.count_value()
         if p_card_sum < MIN_CURRENT_SUM:
             action = Action.Hit
         else:
-            d_showing_card_value = self.dealer.cards.showing_card.card_value()
+            d_upcard_value = self.dealer.cards.upcard.card_value()
             p_has_usable_ace = 1 if self.cards.has_usable_ace else 0
             action = Action.Hit if self._policy[
                 (self._policy[:,0] == p_card_sum) & \
-                (self._policy[:,1] == d_showing_card_value) & \
+                (self._policy[:,1] == d_upcard_value) & \
                 (self._policy[:,2] == p_has_usable_ace)][0][3] == Action.Hit.value else Action.Stick
             
         if VERBOSE == True:
-            print("{} takes action {}.".format(self, enum_to_string(action)))
+            print(".. {}.{}()".format(str(self).upper(), enum_to_string(action).upper()))
             
         if action == Action.Hit:
-            result = self.hit()
+            self.hit()
         else:
-            result = self.stick()
+            self.stick()
 
-        return (action, result)
+        return action
         

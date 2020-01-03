@@ -15,9 +15,9 @@ class MonteCarloPrediction():
         
     def _get_all_states(self):
         all_sums = list(range(MIN_CURRENT_SUM, MAX_CURRENT_SUM+1))
-        all_showing_card_values = list(range(1, 11))
+        all_upcard_values = list(range(1, 11))
         all_ace_states = [False, True]
-        all_states = np.array(np.meshgrid(all_sums, all_showing_card_values, all_ace_states)).T.reshape(-1, 3)
+        all_states = np.array(np.meshgrid(all_sums, all_upcard_values, all_ace_states)).T.reshape(-1, 3)
         return all_states
     
     def init_pi(self):
@@ -61,7 +61,7 @@ class MonteCarloPrediction():
             for i in range(len(episode.actors_k) - 1, -1, -1):
                 #actors_k = episode.actors_k[i]
                 states_k_sum = episode.states_k_sum[i]
-                states_k_showing_card_value = episode.states_k_showing_card_value[i]
+                states_k_upcard_value = episode.states_k_upcard_value[i]
                 states_k_has_usable_ace = episode.states_k_has_usable_ace[i]
                 #actions_k = episode.actions_k[i]
                 rewards_k_plus_1 = episode.rewards_k_plus_1[i]
@@ -70,11 +70,11 @@ class MonteCarloPrediction():
                 prev_states_in_episode = [
                     [a, b, c] for a, b, c in zip(
                         episode.states_k_sum[:i], 
-                        episode.states_k_showing_card_value[:i], 
+                        episode.states_k_upcard_value[:i], 
                         episode.states_k_has_usable_ace[:i])]
-                if not ([states_k_sum, states_k_showing_card_value, states_k_has_usable_ace] in prev_states_in_episode):
+                if not ([states_k_sum, states_k_upcard_value, states_k_has_usable_ace] in prev_states_in_episode):
                     index = np.where((self._v[:,0].astype(int) == states_k_sum) & \
-                        (self._v[:,1].astype(int) == states_k_showing_card_value) & \
+                        (self._v[:,1].astype(int) == states_k_upcard_value) & \
                         (self._v[:,2].astype(int) == states_k_has_usable_ace))[0][0]
                     row = self._v[index,:]
                     

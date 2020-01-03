@@ -1,19 +1,22 @@
 import enum
+import numpy as np
 
 from .actor import Action, Actor, Dealer, Player
 from .card import Card, Cards, CardsState
 from .constants import ACTOR_DEALER, ACTOR_PLAYER
-from .constants import MAX_CURRENT_SUM, VERBOSE
+from .constants import MIN_CURRENT_SUM, MAX_CURRENT_SUM, VERBOSE
 from .playback import Playback, playback
 
 
-class GameOutcome(enum.Enum):
-    Ongoing = -3
-    DealerReachesFullCount = -2
+class GameState(enum.Enum):
+    Continues = -3
+    #DealerHasFullCount = -2
     DealerWins = -1
-    Draw = 0
-    PlayerReachesFullCount = 1
-    PlayerWins = 2
+    #BothHaveFullCount = 0
+    BothStick = 1
+    Draw = 2
+    PlayerHasMaxCnt = 3
+    PlayerWins = 4
 
 class Game():
     def __init__(self):
@@ -23,116 +26,134 @@ class Game():
         self.dealer.dealer = self.dealer
         self.player.dealer = self.dealer
         
+        # dealer policy is hard-coded (HIT17)
         self.player.set_policy(playback.pi)
-        
         self.player_on_turn = True
+        self._cl = self._init_cl()
     
-    def _init(self, cards: []) -> (CardsState, CardsState):
+    def _init(self, cards: []):
         self.dealer.reset_cards()
         self.player.reset_cards()
         self.player_on_turn = True
         
         # deal first 2 cards to dealer
-        self.dealer.deal_card(self.dealer)
-        dealer_state = self.dealer.deal_card(self.dealer)
+        self.dealer.set_card_state(self.dealer.deal_card(self.dealer))
+        self.dealer.set_card_state(self.dealer.deal_card(self.dealer))
         
-        # deal first 2 cards to player
-        self.dealer.deal_card(self.player)
-        player_state = self.dealer.deal_card(self.player) 
+        # deal first 2 cards to player, and keep dealing further cards if needed 
+        # until MIN_CURRENT_SUM is reached
+        self.player.set_card_state(self.dealer.deal_card(self.player))
+        self.player.set_card_state(self.dealer.deal_card(self.player))
+        while self.player.cards.count_value() < MIN_CURRENT_SUM:
+            self.player.set_card_state(self.dealer.deal_card(self.player))
         
-        return (dealer_state, player_state)
-        
-    def _actor_takes_turn(self, dealer_state: CardsState, player_state: CardsState) -> (Actor, Action, CardsState, CardsState):
+    def _actor_takes_turn(self) -> (Actor, Action):
         """Lets the actor take an action.
         Returns (dealer's card state, player's card state)
         """
         # decide who the actor is
         actor = self.dealer if self.player_on_turn == False else self.player
-        adversary_state = dealer_state if self.player_on_turn == True else player_state
         
         # let the actor decide on an action and induce an outcome
-        action, state = actor.take_turn()
+        action = actor.take_turn()
         
         # see if a change in turns should take place
         if action == Action.Stick: self.player_on_turn = (not self.player_on_turn)
         
-        # return the outcome as (dealer's card state, player's card state)
-        if isinstance(actor, Dealer): 
-            return (actor, action, state, adversary_state) 
-        else:
-            return (actor, action, adversary_state, state) 
+        return (actor, action) 
+
+    class NextStep(enum.Enum):
+        NaN = -1
+        Stop = 0
+        GoOn = 1
+
+    def _init_cl(self) -> dict:
+        all_states = [CardsState.Safe, CardsState.Busted, CardsState.Stuck, CardsState.MaxCnt]
+        cart_prod = np.array(np.meshgrid(all_states, all_states)).T.reshape(-1, 2)
+        keys = list(zip(cart_prod[:, 0], cart_prod[:, 1]))
+        values = [(None, None, None)] * len(keys)
         
-    # CardsState = [Unchanged, Busted, BlackJack, Safe]
-    def _audit(self, dealer_outcome: CardsState, player_outcome: CardsState) -> GameOutcome:
-        assert (not (dealer_outcome == CardsState.Busted and player_outcome == CardsState.Busted))
-        assert (not (dealer_outcome == CardsState.BlackJackByFullCount and player_outcome == CardsState.Busted))
-        assert (not (dealer_outcome == CardsState.Busted and player_outcome == CardsState.BlackJackByFullCount))
+        cl = dict(zip(keys, values))
+        
+        #   DEALER               PLAYER                  GAME                        After _init()       Later on
+        cl[(CardsState.Safe,     CardsState.Safe   )] = (GameState.Continues,        Game.NextStep.GoOn, Game.NextStep.GoOn)
+        cl[(CardsState.Safe,     CardsState.Busted )] = (GameState.DealerWins,       None,               Game.NextStep.Stop)
+        cl[(CardsState.Safe,     CardsState.Stuck  )] = (GameState.Continues,        None,               Game.NextStep.GoOn)
+        cl[(CardsState.Safe,     CardsState.MaxCnt )] = (GameState.PlayerHasMaxCnt,  Game.NextStep.GoOn, Game.NextStep.GoOn)
+        cl[(CardsState.Busted,   CardsState.Stuck  )] = (GameState.PlayerWins,       None,               Game.NextStep.Stop)
+        cl[(CardsState.Stuck,    CardsState.Stuck  )] = (GameState.BothStick,        None,               Game.NextStep.Stop)
+        cl[(CardsState.MaxCnt,   CardsState.Safe   )] = (GameState.DealerWins,       Game.NextStep.GoOn, None)
+        cl[(CardsState.MaxCnt,   CardsState.Stuck  )] = (GameState.DealerWins,       None,               Game.NextStep.Stop)
+        cl[(CardsState.MaxCnt,   CardsState.MaxCnt )] = (GameState.Draw,             Game.NextStep.GoOn, None)
+        
+        return cl
+
+    # CardsState = [Unchanged, Busted, MaxCnt, Safe]
+    def _compute(self, is_after_init: bool) -> (int, GameState, NextStep):
+        d_state, p_state = self.dealer.card_state, self.player.card_state
+        d_card_value, p_card_value = self.dealer.cards.count_value(), self.player.cards.count_value()
+        g_state = self._cl[(d_state, p_state)]
+        what_next = g_state[1] if is_after_init == True else g_state[2]
+        
+        assert g_state != (None, None, None)
+        assert what_next != None
         
         if VERBOSE == True:
-            print(" -> Dealer state: {} ({}), Player state: {} ({})".format(
-                str(dealer_outcome).split(".")[-1], self.dealer.cards.count_value(), 
-                str(player_outcome).split(".")[-1], self.player.cards.count_value()))
+            print(" -> {}: {} ({}), {}: {} ({})".format(
+                ACTOR_DEALER.upper(), str(d_state).split(".")[-1].upper(), d_card_value, 
+                ACTOR_PLAYER.upper(), str(p_state).split(".")[-1].upper(), p_card_value))
             
-        # the following represent conditions under which count=21 can no longer be reached
-        if dealer_outcome == CardsState.Busted: return GameOutcome.PlayerWins
-        if player_outcome == CardsState.Busted: return GameOutcome.DealerWins
-        if player_outcome == CardsState.BlackJackByFullCount and \
-            dealer_outcome == CardsState.BlackJackByFullCount: return GameOutcome.Draw # possible after _init()
-        if dealer_outcome == CardsState.Unchanged and self.dealer.cards.count_value() == MAX_CURRENT_SUM:
-            return GameOutcome.DealerWins
-        if player_outcome == CardsState.Unchanged and self.player.cards.count_value() == MAX_CURRENT_SUM:
-            return GameOutcome.PlayerWins
-        if dealer_outcome == CardsState.Unchanged and player_outcome == CardsState.Unchanged:
-            dealer_count = self.dealer.cards.count_value()
-            player_count = self.player.cards.count_value()
-            if dealer_count > player_count: return GameOutcome.DealerWins
-            if dealer_count < player_count: return GameOutcome.PlayerWins
-            else: return GameOutcome.Draw
-        # the following represents conditions under which count=21 may still be reached;
-        # this includes when exactly one of the two actors has reached 21 already
-        if player_outcome == CardsState.BlackJackByFullCount: return GameOutcome.PlayerReachesFullCount
-        if dealer_outcome == CardsState.BlackJackByFullCount: return GameOutcome.DealerReachesFullCount
-        return GameOutcome.Ongoing
+        reward = 0
+        if g_state[0] == GameState.BothStick:
+            if p_card_value != d_card_value: 
+                reward = 1 if p_card_value > d_card_value else -1
+        elif g_state[0] == GameState.DealerWins: reward = -1
+        elif g_state[0] == GameState.PlayerWins: reward = 1                
+                    
+        return reward, g_state[0], what_next
         
-    def play(self, cards: []) -> GameOutcome:
+    def play(self, cards: []) -> GameState:
         self.dealer.set_deck(cards=cards)
         playback.start_episode()
         
-        dealer_state, player_state = self._init(cards)
-        game_state = self._audit(dealer_state, player_state)
-        if game_state != GameOutcome.Ongoing: # max. 1 actor has reached count=21 in _init()
-            if game_state == GameOutcome.DealerReachesFullCount:
-                return GameOutcome.DealerWins # dealer has a natural
-            if game_state == GameOutcome.PlayerReachesFullCount:
-                return GameOutcome.PlayerWins # player has a natural
-            return game_state # end the game
+        self._init(cards)
+        reward, game_state, what_next = self._compute(True)
+        if what_next == Game.NextStep.Stop:
+            playback.end_episode()
+            return game_state
         
         # it's for the player to take an action first
         self.player_on_turn = True
         
         while True:
-            # register the actor and state
+            # the player will keep hitting as long as their last action was Hit and their card count is <= 21
+            
+            prev_player_on_turn = self.player_on_turn
+            # register the actor and the state
             playback.register_actor(self.player_on_turn)
             playback.register_state(
                 self.player.cards.count_value(), 
-                self.dealer.cards.showing_card.card_value(), # if an Ace, card_value() always returns 1
+                self.dealer.cards.upcard.card_value(), # if an Ace, card_value() always returns 1
                 self.player.cards.has_usable_ace)
         
-            actor, action, dealer_state, player_state = self._actor_takes_turn(dealer_state, player_state)
-            # register action taken              
+            actor, action = self._actor_takes_turn()
+            # register the action taken              
             playback.register_action(action.value)
-            game_state = self._audit(dealer_state, player_state)
+            
+            if prev_player_on_turn == True and game_state != GameState.Continues:
+                 # register the reward and end the game
+                if game_state == GameState.DealerWins: reward = -1
+                elif game_state == GameState.PlayerHasMaxCnt: reward = 1                
+                playback.register_reward(reward)
+                break
+            
+            # advance the game state
+            reward, game_state, what_next = self._compute(False)
 
             # register the reward 
-            reward = 0
-            if game_state == GameOutcome.DealerWins: reward = -1
-            elif game_state == GameOutcome.PlayerWins: reward = 1                
             playback.register_reward(reward)
                 
-            if game_state not in [
-                GameOutcome.Ongoing, 
-                GameOutcome.DealerReachesFullCount, 
-                GameOutcome.PlayerReachesFullCount]:
+            if what_next == Game.NextStep.Stop:
                 break
 
         playback.end_episode()        
