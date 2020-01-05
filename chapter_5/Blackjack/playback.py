@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 
 from .common import pickle, unpickle
-from .constants import MIN_CURRENT_SUM, PICKLE_FILE_PATH_EPISODES
+from .constants import MIN_CURRENT_SUM
 
 
 class Playback():
@@ -15,6 +15,15 @@ class Playback():
             self.states_k_has_usable_ace = []
             self.actions_k = []
             self.rewards_k_plus_1 = []
+            
+        def __repr__(self):
+            s = []
+            for step in range(len(self.actions_k)):
+                s.append([
+                    self.states_k_sum[step], self.states_k_upcard_value[step], self.states_k_has_usable_ace[step],
+                    self.actions_k[step], self.rewards_k_plus_1[step]
+                ])
+            return s
             
         def __getstate__(self):
             # Copy the object's state from self.__dict__ which contains
@@ -29,7 +38,7 @@ class Playback():
             self.__dict__.update(state)
             self.actors_k = [True] * len(self.actions_k)
             
-        def preprocess(self):
+        def postprocess(self):
             # re-assign final reward to last player turn
             i = None
             if len(self.actors_k) > 0 and self.actors_k[-1] == False:
@@ -62,13 +71,11 @@ class Playback():
         valid_episodes = [len(ep.actors_k) > 0 for ep in self.episodes]
         self.episodes = list(itertools.compress(self.episodes, valid_episodes))
         
-        self.save()
-        
     def start_episode(self):
         self.episodes.append(Playback.Episode())
         
     def end_episode(self):
-        self.episodes[-1].preprocess()
+        self.episodes[-1].postprocess()
         
     def register_actor(self, is_player: bool):
         self.episodes[-1].actors_k.append(is_player)
@@ -83,11 +90,3 @@ class Playback():
         
     def register_reward(self, reward_value: int):
         self.episodes[-1].rewards_k_plus_1.append(reward_value)
-        
-    def save(self):
-        pickle(PICKLE_FILE_PATH_EPISODES, self.episodes)
-    
-    def load(self):
-        return unpickle(PICKLE_FILE_PATH_EPISODES)
-        
-playback = Playback()

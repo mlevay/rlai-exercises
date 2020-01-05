@@ -4,8 +4,7 @@ import random
 
 from .card import Card, Cards, CardsState
 from .common import enum_to_string
-from .constants import ACTOR_DEALER, ACTOR_PLAYER, DEALER_STICKS_AT, MIN_CURRENT_SUM, PLAYER_STICKS_AT, VERBOSE
-from .playback import Playback, playback
+from .constants import ACTOR_DEALER, ACTOR_PLAYER, DEALER_STICKS_AT, MIN_CURRENT_SUM, VERBOSE
 
 
 class Action(enum.Enum):
@@ -21,20 +20,20 @@ class Actor():
         return ACTOR_DEALER if isinstance(self, Dealer) else ACTOR_PLAYER
         
     def hit(self):
-        self.set_card_state(self.dealer.deal_card(self))
+        self.set_cards_state(self.dealer.deal_card(self))
     
     def stick(self):
-        self.set_card_state(self.dealer.deal_no_card(self))
+        self.set_cards_state(self.dealer.deal_no_card(self))
         
-    def set_card_state(self, card_state: CardsState):
-        self.card_state = card_state
-    
-    # def take_turn(self) -> (Action, CardsState):
-    #     return (Action.Stick, self.stick())
+    def get_cards_state(self):
+        return self._cards_state
+        
+    def set_cards_state(self, cards_state: CardsState):
+        self._cards_state = cards_state
     
     def reset_cards(self):
         self.cards = Cards()        
-        self.card_state = CardsState.Safe
+        self._cards_state = CardsState.Safe
         
 class Dealer(Actor):
     def __init__(self):
@@ -91,15 +90,12 @@ class Player(Actor):
         assert self._policy.size != 0
         
         p_card_sum = self.cards.count_value()
-        if p_card_sum < MIN_CURRENT_SUM:
-            action = Action.Hit
-        else:
-            d_upcard_value = self.dealer.cards.upcard.card_value()
-            p_has_usable_ace = 1 if self.cards.has_usable_ace else 0
-            action = Action.Hit if self._policy[
-                (self._policy[:,0] == p_card_sum) & \
-                (self._policy[:,1] == d_upcard_value) & \
-                (self._policy[:,2] == p_has_usable_ace)][0][3] == Action.Hit.value else Action.Stick
+        d_upcard_value = self.dealer.cards.upcard.card_value()
+        p_has_usable_ace = 1 if self.cards.has_usable_ace else 0
+        action = Action.Hit if self._policy[
+            (self._policy[:,0] == p_card_sum) & \
+            (self._policy[:,1] == d_upcard_value) & \
+            (self._policy[:,2] == p_has_usable_ace)][0][3] == Action.Hit.value else Action.Stick
             
         if VERBOSE == True:
             print(".. {}.{}()".format(str(self).upper(), enum_to_string(action).upper()))

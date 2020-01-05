@@ -1,6 +1,16 @@
-PICKLE_FILE_PATH_EPISODES = "C:/Temp/rlai-exercises/Chapter 5/data/fixed_policy/episodes"
-PICKLE_FILE_PATH_PI = "C:/Temp/rlai-exercises/Chapter 5/data/fixed_policy/pi"
-PICKLE_FILE_PATH_V = "C:/Temp/rlai-exercises/Chapter 5/data/fixed_policy/v"
+DIR_ABS_PATH = "C:/Temp/rlai-exercises/Chapter 5/data"
+
+DIR_REL_PATH_INIT = "init"
+DIR_REL_PATH_PRED = "prediction"
+DIR_REL_PATH_CTRL = "control"
+
+PICKLE_FILE_NAME_INIT_PI = "pi"
+PICKLE_FILE_NAME_INIT_EPISODES = "episodes"
+
+PICKLE_FILE_NAME_PRED_V = "v"
+
+PICKLE_FILE_NAME_CTRL_PI = "pi"
+PICKLE_FILE_NAME_CTRL_Q = "q"
 
 VERBOSE = False
 
