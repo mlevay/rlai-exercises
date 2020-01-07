@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 
 from .common import pickle, unpickle
-from .constants import MIN_CURRENT_SUM
+from .constants import MIN_CARD_SUM
 
 
 class Playback():

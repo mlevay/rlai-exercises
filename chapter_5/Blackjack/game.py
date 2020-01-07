@@ -1,10 +1,12 @@
 import enum
 import numpy as np
 
-from .actor import Action, Actor, Dealer, Player
+from .actor import Action, Actor
+from .actor import Dealer, EqualProbabilityDealer, EqualProbabilityPlayer, Player
+from .actor import StateActionCounter
 from .card import Card, Cards, CardsState
 from .constants import ACTOR_DEALER, ACTOR_PLAYER
-from .constants import MIN_CURRENT_SUM, MAX_CURRENT_SUM, VERBOSE
+from .constants import MIN_CARD_SUM, MAX_CARD_SUM, VERBOSE
 from .playback import Playback
 
 
@@ -17,18 +19,27 @@ class GameState(enum.Enum):
     PlayerWins = 2
 
 class Game():
-    def __init__(self, playback: Playback):
-        self._playback = playback
-        self.dealer = Dealer()
-        self.player = Player()
-        
-        self.dealer.dealer = self.dealer
-        self.player.dealer = self.dealer
-        
-        # dealer policy is hard-coded (HIT17)
-        self.player.set_policy(self._playback.pi)
+    def __init__(self, playback: Playback, equal_probs=False):
+        self._playback = playback     
         self.player_on_turn = True
         self._cl = self._init_cl()
+        self.stats = StateActionCounter.init_counters()
+        
+        # initialize the Dealer
+        if equal_probs == True:
+            self.dealer = EqualProbabilityDealer(self.stats)
+        else:
+            self.dealer = Dealer()
+        self.dealer.dealer = self.dealer
+        # dealer policy is hard-coded (HIT17)
+        
+        # initialize the Player 
+        if equal_probs == True:
+            self.player = EqualProbabilityPlayer(self.stats)
+        else:
+            self.player = Player()
+            self.player.set_policy(self._playback.pi)
+        self.player.dealer = self.dealer
     
     def _init(self, cards: []):
         self.dealer.reset_cards()
@@ -40,10 +51,10 @@ class Game():
         self.dealer.set_cards_state(self.dealer.deal_card(self.dealer))
         
         # deal first 2 cards to player, and keep dealing further cards if needed 
-        # until MIN_CURRENT_SUM is reached
+        # until MIN_CARD_SUM is reached
         self.player.set_cards_state(self.dealer.deal_card(self.player))
         self.player.set_cards_state(self.dealer.deal_card(self.player))
-        while self.player.cards.count_value() < MIN_CURRENT_SUM:
+        while self.player.cards.count_value() < MIN_CARD_SUM:
             self.player.set_cards_state(self.dealer.deal_card(self.player))
         
     def _actor_takes_turn(self) -> (Actor, Action):
@@ -158,6 +169,3 @@ class Game():
 
         self._playback.end_episode()        
         return game_state
-        
-        
-        

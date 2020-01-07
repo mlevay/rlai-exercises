@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 import pickle as pckl
 
-from .constants import MAX_CURRENT_SUM, MIN_CURRENT_SUM
+from .constants import MAX_CARD_SUM, MIN_CARD_SUM
 
 
 def enum_to_string(item: enum.Enum) -> str:
@@ -17,7 +17,7 @@ def get_all_states() -> np.ndarray:
     """
     Returns a matrix representing all possible states, one row per state / one column per state variable.
     """
-    all_sums = list(range(MIN_CURRENT_SUM, MAX_CURRENT_SUM+1))
+    all_sums = list(range(MIN_CARD_SUM, MAX_CARD_SUM+1))
     all_upcard_values = list(range(1, 11))
     all_ace_states = [False, True]
     all_states = np.array(np.meshgrid(all_sums, all_upcard_values, all_ace_states)).T.reshape(-1, 3)
@@ -27,7 +27,7 @@ def get_all_states_and_actions() -> np.ndarray:
     """
     Returns a matrix representing all possible states and actions, one row per state and action / one column per state variable or action.
     """
-    all_sums = list(range(MIN_CURRENT_SUM, MAX_CURRENT_SUM+1))
+    all_sums = list(range(MIN_CARD_SUM, MAX_CARD_SUM+1))
     all_upcard_values = list(range(1, 11))
     all_ace_states = [False, True]
     

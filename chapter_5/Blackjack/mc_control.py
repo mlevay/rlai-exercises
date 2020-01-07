@@ -126,7 +126,7 @@ class MonteCarloControl():
             s_card_sum, s_dealer_upcard, s_usable_ace = v_row[0], v_row[1], v_row[2]
             actions, qs, counts = [0]*2, [0.]*2, [0]*2
             i = 0
-            for pi_row in pi[(pi[0] == s_card_sum) & (pi[1] == s_dealer_upcard) & (pi[2] == s_usable_ace)]:
+            for pi_row in pi[(pi[:, 0] == s_card_sum) & (pi[:, 1] == s_dealer_upcard) & (pi[:, 2] == s_usable_ace)]:
                 actions[i] = int(pi_row[3])
                 qs_row = q[(q[0] == s_card_sum) & (q[1] == s_dealer_upcard) & (q[2] == s_usable_ace) & (q[3] == actions[i])]
                 qs[i], counts[i] = qs_row[4], int(qs_row[5])

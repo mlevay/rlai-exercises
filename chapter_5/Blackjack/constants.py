@@ -14,8 +14,8 @@ PICKLE_FILE_NAME_CTRL_Q = "q"
 
 VERBOSE = False
 
-MIN_CURRENT_SUM = 12
-MAX_CURRENT_SUM = 21
+MIN_CARD_SUM = 12
+MAX_CARD_SUM = 21
 
 DEALER_STICKS_AT = 17 # dealer sticks if value is at least what is specified here
 PLAYER_STICKS_AT = 20 # player sticks if value is at least what is specified here
