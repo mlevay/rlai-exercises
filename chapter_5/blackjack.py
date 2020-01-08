@@ -6,7 +6,6 @@ import time
 from Blackjack.card import Card
 from Blackjack.constants import MAX_CARD_SUM, MIN_CARD_SUM
 from Blackjack import game
-from Blackjack import game_probs
 from Blackjack import mc_control, mc_init, mc_prediction
 from Blackjack import plot
 
