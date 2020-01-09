@@ -115,33 +115,17 @@ class MonteCarloControl():
         self.save_q(self._q)
         return self._pi, self._q
     
-    def compute_v_from_q(self, v_init, q, pi):
-        # V(s) = sum_over_a[pi(a|s)*Q(s,a)]
+    def compute_v_from_q(self, v_init, q):
+        # V(s) = sum_over_a[pi(a|s)*Q(s,a)] = sum_over_a[.5*Q(s,a)]
         # columns for v: {0=sum, 1=upcard, 2=usable ace}, 3=state value, 4=number of visits
-        # columns for pi: {0=sum, 1=upcard, 2=usable ace}, 3=action
-        # columns for q: {0=sum, 1=upcard, 2=usable ace, 3=action}, 4=action value, 5=number of visits
-        vs = [[0., 0]]*len(v_init)
+        # columns for q: {0=sum, 1=upcard, 2=usable ace, 3=action, 4=action value}, 5=number of visits
         index = 0
         for v_row in v_init:
             s_card_sum, s_dealer_upcard, s_usable_ace = v_row[0], v_row[1], v_row[2]
-            actions, qs, counts = [0]*2, [0.]*2, [0]*2
-            i = 0
-            for pi_row in pi[(pi[:, 0] == s_card_sum) & (pi[:, 1] == s_dealer_upcard) & (pi[:, 2] == s_usable_ace)]:
-                actions[i] = int(pi_row[3])
-                qs_row = q[(q[0] == s_card_sum) & (q[1] == s_dealer_upcard) & (q[2] == s_usable_ace) & (q[3] == actions[i])]
-                qs[i], counts[i] = qs_row[4], int(qs_row[5])
-                i += 1
-            assert i == 2
-            
-            cts = np.array(counts)
-            action_probs = softmax(cts).tolist()
-            visits = np.sum(cts).tolist()
-            
-            v_of_s = 0.
-            for i in range(len(actions)):
-                v_of_s += action_probs[i] * qs[i]
-            vs[index] = [v_of_s, visits]
+            s_qs = q[
+                (q[:, 0] == s_card_sum) & (q[:, 1] == s_dealer_upcard) & (q[:, 2] == s_usable_ace), :
+            ]
+            assert s_qs.shape[0] == 2
+            v_init[index, 3:] = [.5*s_qs[0, 4] + .5*s_qs[1, 4], s_qs[0, 5] + s_qs[1, 5]]
             index += 1
-        v_init[:, 3:] = vs
         return v_init
-            
