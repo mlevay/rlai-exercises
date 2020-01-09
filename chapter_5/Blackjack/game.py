@@ -3,7 +3,7 @@ import numpy as np
 
 from .actor import Action, Actor
 from .actor import Dealer, EqualProbabilityDealer, EqualProbabilityPlayer, Player
-from .actor import StateActionCounter
+from .actor import Tracker
 from .card import Card, Cards, CardsState
 from .constants import ACTOR_DEALER, ACTOR_PLAYER
 from .constants import MIN_CARD_SUM, MAX_CARD_SUM, VERBOSE
@@ -23,7 +23,7 @@ class Game():
         self._playback = playback     
         self.player_on_turn = True
         self._cl = self._init_cl()
-        self.stats = StateActionCounter.init_counters()
+        self.stats = Tracker().stats
         
         # initialize the Dealer
         if equal_probs == True:

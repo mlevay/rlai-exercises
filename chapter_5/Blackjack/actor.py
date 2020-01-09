@@ -112,32 +112,21 @@ class Player(Actor):
             self.stick()
 
         return action        
-        
-
-class StateActionCounter(object):
-    def __init__(self, 
-                    card_sum: int = 0, upcard: Card = None, has_usable_ace: bool = False, 
-                    action: Action = None):
-        self.card_sum = card_sum
-        self.upcard = upcard
-        self.has_usable_ace = has_usable_ace
-        self.action = action
-        self.count = 0
-        
-    @staticmethod
-    def init_counters() -> []:
+           
+class Tracker():
+    def __init__(self):
+        self.stats = self._init_stats()
+    
+    def _init_stats(self):
         all_card_sums = list(range(MIN_CARD_SUM, MAX_CARD_SUM + 1))
-        all_upcards = [c for c in Card]
-        all_usable_ace_states = [False, True]
-        all_actions = [a for a in Action]
+        all_upcards = [c.value for c in Card]
+        all_usable_ace_states = [0, 1]
+        all_actions = [a.value for a in Action]
         
-        i, stats = 0, [None] * (len(all_card_sums)*len(all_upcards)*len(all_usable_ace_states)*len(all_actions))
-        for cs in all_card_sums:
-            for uc in all_upcards:
-                for hua in all_usable_ace_states:
-                    for a in all_actions:
-                        stats[i] = StateActionCounter(cs, uc, hua, a)
-                        i += 1
+        params = np.array(np.meshgrid(
+            all_card_sums, all_upcards, all_usable_ace_states, all_actions)).T.reshape(-1, 4).tolist()
+        stats = np.zeros((len(params), 5), dtype=int)
+        stats[:, :-1] = params
         return stats
     
 class EqualProbabilityActor(Actor):
@@ -147,9 +136,12 @@ class EqualProbabilityActor(Actor):
     
     def get_stats_for_state(
         self, card_sum: int, upcard: Card, has_usable_ace: bool) -> []:
-        stats = list(filter(lambda i: 
-                i.card_sum == card_sum and i.upcard == upcard and i.has_usable_ace == has_usable_ace, 
-                self.stats))
+        upcard, has_usable_ace = upcard.value, int(has_usable_ace)
+        stats = self.stats[
+            (self.stats[:, 0] == card_sum) & \
+            (self.stats[:, 1] == upcard) & \
+            (self.stats[:, 2] == has_usable_ace)
+        ]
         return stats
     
 class EqualProbabilityDealer(EqualProbabilityActor, Dealer):
@@ -157,26 +149,31 @@ class EqualProbabilityDealer(EqualProbabilityActor, Dealer):
         EqualProbabilityActor.__init__(self, stats)
         Dealer.__init__(self)
     
-    def _get_least_visited_state_stats(self, cards: [], card_sum: int, upcard: Card, has_usable_ace: bool) -> StateActionCounter:
+    def _get_least_visited_state_stats(self, cards: [], card_sum: int, upcard: Card, has_usable_ace: bool) -> np.ndarray:
         # see if it is best to increment the card_sum by 1 (by getting a usable Ace), or get a higher card instead
         all_cards = [c for c in list(Card)]
-        all_card_sums = [(0, False)]*len(all_cards)
+        ts = [(0, False)]*len(all_cards)
         for i in range(len(all_cards)):
             new_cards = cards + [all_cards[i]]
-            all_card_sums[i] = Cards._count_value(new_cards)
-        valid_card_sums = [cs for cs in all_card_sums if cs[0] <= MAX_CARD_SUM]   
+            cs, hua = Cards._count_value(new_cards)
+            if (cs, int(hua)) not in ts: ts[i] = (cs, int(hua)) 
+        valid_ts = [cs for cs in ts if cs[0] > 0 and cs[0] <= MAX_CARD_SUM]   
         
-        if len(valid_card_sums) > 0:
-            stats = list(filter(
-                lambda item: 
-                    (item.card_sum, item.has_usable_ace) in valid_card_sums and \
-                    item.upcard == upcard,
-                self.stats))
+        if len(valid_ts) > 0:
+            upcard = upcard.value
+            stats = np.zeros((self.stats.shape[0], self.stats.shape[1]+1), dtype=int)
+            stats[:, :-1] = self.stats
+            for cs, hua in valid_ts:
+                indices = np.where(
+                    (stats[:, 0] == cs) & (stats[:, 2] == hua) & (stats[:, 1] == upcard)
+                )
+                if len(indices) > 0: stats[indices, 5] = 1
+            stats = stats[stats[:, 5] == 1, :-1]
             if len(stats) > 0:
-                stats = sorted(stats, key=lambda item: item.count)
-                min_count = stats[0].count
-                stats = list(filter(lambda item: item.count == min_count, stats))
-                return random.choice(stats)
+                min_index = np.argmin(stats[:, 4], axis=0)
+                min_count = stats[min_index, 4]
+                stats = stats[stats[:, 4] == min_count, :]
+                return random.sample(list(stats), 1)[0]
         else: return None
         
     def deal_card(self, actor: Actor) -> CardsState:
@@ -188,7 +185,7 @@ class EqualProbabilityDealer(EqualProbabilityActor, Dealer):
             if actor.cards.count_value() < MIN_CARD_SUM - 1:
                 new_card = random.choice(all_cards)
             else:
-                # we need the Player to get an Ace 50% of the time post-_init(); 
+                # we need the Player to get an Ace approx. 50% of the time post-_init(); 
                 # find the least visited state and action to which the Player can still get from here
                 actor_card_sum = actor.cards.count_value() 
                 least_visited_sa = self._get_least_visited_state_stats(
@@ -197,11 +194,11 @@ class EqualProbabilityDealer(EqualProbabilityActor, Dealer):
                     actor.cards.upcard,
                     actor.cards.has_usable_ace)
                 # choose the card so that the Player's next state is as found above
-                new_card_value = least_visited_sa.card_sum - actor_card_sum 
+                new_card_value = least_visited_sa[0] - actor_card_sum 
                 if actor.cards.has_usable_ace == True and new_card_value <= 0:
                     new_card_value += 10
                 new_card = Card.get_card_for_value(new_card_value)
-                actor.set_next_action(least_visited_sa.action)
+                actor.set_next_action(least_visited_sa[3])
         else:
             new_card = random.choice(all_cards)
             pass
@@ -236,13 +233,17 @@ class EqualProbabilityPlayer(EqualProbabilityActor, Player):
         stats_for_state = self.get_stats_for_state(card_sum, upcard, has_usable_ace)
         assert len(stats_for_state) == 2
         for sa_c in stats_for_state:
-            if sa_c.count < min_count:
-                min_count, min_count_sa = sa_c.count, sa_c   
-        action = min_count_sa.action
+            if sa_c[4] < min_count:
+                min_count, min_count_sa = sa_c[4], sa_c   
+        action = Action(min_count_sa[3])
         if card_sum == MAX_CARD_SUM: action = Action.Stick
         
         # increment the counter for the current state and chosen action
-        min_count_sa.count += 1        
+        self.stats[
+            (self.stats[:, 0] == min_count_sa[0]) & \
+            (self.stats[:, 1] == min_count_sa[1]) & \
+            (self.stats[:, 2] == min_count_sa[2]) & \
+            (self.stats[:, 3] == min_count_sa[3]), 4] += 1
         
         return action
         

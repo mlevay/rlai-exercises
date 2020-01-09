@@ -88,6 +88,7 @@ class MonteCarloInit():
         playback = Playback()
         playback.start(pi)
         game = Game(playback, equal_probs=self.equal_probs)
+        take_size, curr_take = num_episodes/10, 1
         while i < num_episodes:
             if len(cards) > j:
                 self._play_one_game(playback, game, cards=cards[j])
@@ -96,10 +97,16 @@ class MonteCarloInit():
                 self._play_one_game(playback, game)
             if len(playback.episodes[-1].actors_k) > 0: 
                 i += 1
+                if i == curr_take*take_size: 
+                    elapsed_time = time.time() - start_time
+                    print("{} percent done. Elapsed time: {}".format(
+                        10*curr_take, 
+                        timedelta(seconds=elapsed_time)))
+                    curr_take += 1
         playback.end()
         
         elapsed_time = time.time() - start_time
-        print("Elapsed time: {}".format(timedelta(seconds=elapsed_time)))
+        print("Done. Elapsed time: {}".format(timedelta(seconds=elapsed_time)))
 
         if VERBOSE == True:
             print("All episodes:")
@@ -113,9 +120,11 @@ class MonteCarloInit():
                 print(episode.rewards_k_plus_1)
                 
             print()
-        print("Stats:")
-        for sa_c in game.player.stats:
-            print("state=[{}, {}, {}], action={}, count={}".format(sa_c.card_sum, sa_c.upcard, sa_c.has_usable_ace, sa_c.action, sa_c.count))
+        if self.equal_probs == True:
+            print("Stats:")
+            for sa_c in game.player.stats:
+                print("state=[{}, {}, {}], action={}, count={}".format(
+                    sa_c[0], sa_c[1], sa_c[2], sa_c[3], sa_c[4]))
                 
         if commit_to_disk == True: self._save_episodes(playback.episodes)
         return playback.episodes
