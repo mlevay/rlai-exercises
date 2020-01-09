@@ -5,7 +5,9 @@ import random
 import time
 
 from .common import get_all_states, get_all_states_and_actions, pickle, unpickle
-from .constants import DIR_ABS_PATH, DIR_REL_PATH_CTRL, DIR_REL_PATH_INIT, PICKLE_FILE_NAME_INIT_EPISODES, PICKLE_FILE_NAME_INIT_PI
+from .constants import DIR_ABS_PATH, DIR_REL_PATH_CTRL, DIR_REL_PATH_INIT
+from .constants import EPSILON
+from .constants import PICKLE_FILE_NAME_INIT_EPISODES, PICKLE_FILE_NAME_INIT_PI
 from .constants import PLAYER_STICKS_AT, VERBOSE
 from .game import Game
 from .playback import Playback
@@ -45,7 +47,7 @@ class MonteCarloInit():
         if commit_to_disk == True: self._save_pi(pi)
         return pi 
     
-    def get_pi_of_s_and_a(self, commit_to_disk=False) -> np.ndarray:
+    def get_pi_of_s_and_a(self, player_sticks_at, commit_to_disk=False) -> np.ndarray:
         """
         Creates and returns a new policy function for the specified policy choice.
         """
@@ -53,7 +55,10 @@ class MonteCarloInit():
         
         pi = np.zeros((len(all_states_and_actions), 5), dtype=float)
         pi[:, :-1] = all_states_and_actions
-        pi[:, -1] = random.randint(0, 1)
+        pi[(pi[:, 0].astype(int) < player_sticks_at) & (pi[:, 3] == 1), -1] = 1 - EPSILON
+        pi[(pi[:, 0].astype(int) >= player_sticks_at) & (pi[:, 3] == 1), -1] = EPSILON
+        pi[(pi[:, 0].astype(int) < player_sticks_at) & (pi[:, 3] == 0), -1] = EPSILON
+        pi[(pi[:, 0].astype(int) >= player_sticks_at) & (pi[:, 3] == 0), -1] = 1 - EPSILON
 
         if commit_to_disk == True: self._save_pi(pi)
         return pi
@@ -67,7 +72,7 @@ class MonteCarloInit():
         if soft_policy == False:
             pi = self.get_pi_of_s(PLAYER_STICKS_AT, commit_to_disk=True)
         else:
-            pi = self.get_pi_of_s_and_a(commit_to_disk=True)
+            pi = self.get_pi_of_s_and_a(PLAYER_STICKS_AT, commit_to_disk=True)
         return pi
 
     def load_pi(self) -> np.ndarray:

@@ -98,10 +98,14 @@ class Player(Actor):
         p_card_sum = self.cards.count_value()
         d_upcard_value = self.dealer.cards.upcard.card_value()
         p_has_usable_ace = 1 if self.cards.has_usable_ace else 0
-        action = Action.Hit if self._policy[
-            (self._policy[:,0] == p_card_sum) & \
-            (self._policy[:,1] == d_upcard_value) & \
-            (self._policy[:,2] == p_has_usable_ace)][0][3] == Action.Hit.value else Action.Stick
+        actions = self._policy[
+            (self._policy[:, 0] == p_card_sum) & \
+            (self._policy[:, 1] == d_upcard_value) & \
+            (self._policy[:, 2] == p_has_usable_ace)]
+        if len(actions) == 1: # deterministic policy pi(s)
+            action = Action.Hit if actions[0][3] == Action.Hit.value else Action.Stick
+        else: # stochastic policy pi(a|s)
+            action = Action(actions[0, 3]) if actions[0, 4] > actions[1, 4] else Action(actions[1, 3])
             
         if VERBOSE == True:
             print(".. {}.{}()".format(str(self).upper(), enum_to_string(action).upper()))

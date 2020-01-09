@@ -68,21 +68,21 @@ def compute_control_ES(cards: [], num_episodes: int, episodes_from_disk=True, pi
 def compute_control_on_policy(cards: [], num_episodes: int, episodes_from_disk=True, pi_from_disk=True):
     assert not(episodes_from_disk == False and pi_from_disk == True)
     
-    mci_equal_probs = mc_init.MonteCarloInit(soft_policy=True, equal_probs=True)
+    mci = mc_init.MonteCarloInit(soft_policy=True, equal_probs=False)
     mcp = mc_prediction.MonteCarloPrediction()
     mcc = mc_control.MonteCarloControl_OnP_FirstVisit()
 
     # (1) load the state value function, initialized at v(s)=0. for all s
     v = mcp.load_v()
     
-    # (2) load the policy, initialized at HIT20
-    pi = mci_equal_probs.load_pi()
+    # (2) load the stochastic policy, initialized at epsilon-soft HIT20
+    pi = mci.load_pi()
     
     # (3) compute or load the episodes, such that for each state, the taken actions have approx. equal probability
     if episodes_from_disk == False:
-        episodes = mci_equal_probs.compute_episodes([], num_episodes, commit_to_disk=True)
+        episodes = mci.compute_episodes([], num_episodes, commit_to_disk=True)
     else:
-        episodes = mci_equal_probs.load_episodes()
+        episodes = mci.load_episodes()
         
     # (4) compute or load the optimal policy and action value function for the episodes
     if pi_from_disk == False:
@@ -141,4 +141,4 @@ if __name__ == "__main__":
     # ]
 
     #compute_prediction(cards, num_episodes, episodes_from_disk=False, v_from_disk=False)
-    compute_control_on_policy(cards, num_episodes, episodes_from_disk=True, pi_from_disk=False)
+    compute_control_on_policy(cards, num_episodes, episodes_from_disk=False, pi_from_disk=False)
