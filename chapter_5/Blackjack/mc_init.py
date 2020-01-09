@@ -1,9 +1,10 @@
 from datetime import timedelta
 import numpy as np
 import os
+import random
 import time
 
-from .common import get_all_states, pickle, unpickle
+from .common import get_all_states, get_all_states_and_actions, pickle, unpickle
 from .constants import DIR_ABS_PATH, DIR_REL_PATH_CTRL, DIR_REL_PATH_INIT, PICKLE_FILE_NAME_INIT_EPISODES, PICKLE_FILE_NAME_INIT_PI
 from .constants import PLAYER_STICKS_AT, VERBOSE
 from .game import Game
@@ -12,13 +13,13 @@ from .playback import Playback
 
 class MonteCarloInit():
     """
-    (1) Initializes a policy table (policy = HIT20);
+    (1) Initializes a policy table (random epsilon-soft policy or HIT20 policy);
     (2) Computes a given number of episodes (= simulated Blackjack games) for use with Monte Carlo ES.
     """
-    def __init__(self, equal_probs: bool=False):
+    def __init__(self, soft_policy: bool = False, equal_probs: bool=False):
         self.equal_probs = equal_probs
         self.file_name_episodes, self.file_name_pi = self._get_file_paths()
-        self._pi = self._init_pi()
+        self._pi = self._init_pi(soft_policy)
 
     def _get_file_paths(self) -> (str, str):
         eps_file_path, pi_file_path = "", "" 
@@ -31,7 +32,7 @@ class MonteCarloInit():
         
         return eps_file_path, pi_file_path   
     
-    def get_pi(self, player_sticks_at, commit_to_disk=False) -> np.ndarray:
+    def get_pi_of_s(self, player_sticks_at, commit_to_disk=False) -> np.ndarray:
         """
         Creates and returns a new policy function for the specified policy choice.
         """
@@ -42,13 +43,31 @@ class MonteCarloInit():
         pi[:, -1] = (pi[:, 0] < player_sticks_at).astype(int)
 
         if commit_to_disk == True: self._save_pi(pi)
+        return pi 
+    
+    def get_pi_of_s_and_a(self, commit_to_disk=False) -> np.ndarray:
+        """
+        Creates and returns a new policy function for the specified policy choice.
+        """
+        all_states_and_actions = get_all_states_and_actions()
+        
+        pi = np.zeros((len(all_states_and_actions), 5), dtype=float)
+        pi[:, :-1] = all_states_and_actions
+        pi[:, -1] = random.randint(0, 1)
+
+        if commit_to_disk == True: self._save_pi(pi)
         return pi
     
-    def _init_pi(self) -> np.ndarray:
+    def _init_pi(self, soft_policy: bool) -> np.ndarray:
         """
-        Creates, saves to disk and returns a new policy function (HIT20).
+        Initializes, saves to disk and returns a new policy function.
+        If soft_policy is True, this will create a random epsilon-soft policy;
+        otherwise, it will create a deterministic HIT20 policy.
         """
-        pi = self.get_pi(PLAYER_STICKS_AT, commit_to_disk=True)
+        if soft_policy == False:
+            pi = self.get_pi_of_s(PLAYER_STICKS_AT, commit_to_disk=True)
+        else:
+            pi = self.get_pi_of_s_and_a(commit_to_disk=True)
         return pi
 
     def load_pi(self) -> np.ndarray:
