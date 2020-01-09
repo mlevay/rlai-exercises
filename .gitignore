@@ -7,3 +7,4 @@ __pycache__
 */.vscode.env
 pandas/
 */pandas/
+chapter_5/blackjack_from_web.py
