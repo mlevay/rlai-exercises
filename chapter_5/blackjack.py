@@ -168,6 +168,6 @@ if __name__ == "__main__":
     # set the number of episodes (= Blackjack games) to be simulated.
     num_episodes = 500000
 
-    compute_prediction(num_episodes, episodes_from_disk=False, v_from_disk=False)
+    #compute_prediction(num_episodes, episodes_from_disk=False, v_from_disk=False)
     compute_control_ES(num_episodes, pi_and_q_from_disk=False)
-    compute_control_on_policy(num_episodes, pi_and_q_from_disk=False)
+    #compute_control_on_policy(num_episodes, pi_and_q_from_disk=False)

@@ -150,61 +150,51 @@ class ESDealer(ESActor, Dealer):
     def __init__(self, stats):
         ESActor.__init__(self, stats)
         Dealer.__init__(self)
-    
-    def _get_least_visited_state_stats(self, cards: [], card_sum: int, upcard: Card, has_usable_ace: bool) -> np.ndarray:
-        # see if it is best to increment the card_sum by 1 (by getting a usable Ace), or get a higher card instead
-        all_cards = [c for c in list(Card)]
-        ts = [(0, False)]*len(all_cards)
-        for i in range(len(all_cards)):
-            new_cards = cards + [all_cards[i]]
-            cs, hua = Cards._count_value(new_cards)
-            if (cs, int(hua)) not in ts: ts[i] = (cs, int(hua)) 
-        valid_ts = [cs for cs in ts if cs[0] > 0 and cs[0] <= MAX_CARD_SUM]   
         
-        if len(valid_ts) > 0:
-            upcard = upcard.value
-            stats = np.zeros((self.stats.shape[0], self.stats.shape[1]+1), dtype=int)
-            stats[:, :-1] = self.stats
-            for cs, hua in valid_ts:
-                indices = np.where(
-                    (stats[:, 0] == cs) & (stats[:, 2] == hua) & (stats[:, 1] == upcard)
-                )
-                if len(indices) > 0: stats[indices, 5] = 1
-            stats = stats[stats[:, 5] == 1, :-1]
-            if len(stats) > 0:
-                min_index = np.argmin(stats[:, 4], axis=0)
-                min_count = stats[min_index, 4]
-                stats = stats[stats[:, 4] == min_count, :]
-                return random.sample(list(stats), 1)[0]
-        else: return None
-        
-    def deal_card(self, actor: Actor) -> CardsState:
+    def deal_init_cards(self, player) -> (CardsState, CardsState, Action):
         all_cards = [c for c in list(Card)]
         all_cards_but_ace = [c for c in all_cards if c != Card.Ace]
         
-        card_sum = actor.cards.count_value()
-        if isinstance(actor, ESPlayer) == True:
-            if card_sum < MIN_CARD_SUM - 1 or card_sum >= MIN_CARD_SUM:
-                new_card = random.choice(all_cards)
-            else:
-                # only for the first (s, a) pair after _init(), we must ensure 
-                # prob(s, a) is equal for all (s, a)
-                # => find the least visited state and action to which the Player can still get from here
-                actor_card_sum = actor.cards.count_value() 
-                least_visited_sa = self._get_least_visited_state_stats(
-                    actor.cards._cards,
-                    actor_card_sum,
-                    actor.cards.upcard,
-                    actor.cards.has_usable_ace)
-                
-                # choose the card so that the Player's next state is as found above
-                new_card_value = least_visited_sa[0] - actor_card_sum 
-                if actor.cards.has_usable_ace == True and new_card_value <= 0:
-                    new_card_value += 10
-                new_card = Card.get_card_for_value(new_card_value)
+        min_index = np.argmin(self.stats[:, 4], axis=0)
+        min_count = self.stats[min_index, 4]
+        stats = self.stats[self.stats[:, 4] == min_count, :]
+        min_s_a = random.sample(list(stats), 1)[0]
+        
+        card_sum = min_s_a[0]
+        upcard = Card.get_card_for_value(min(min_s_a[1], 10))
+        has_usable_ace = bool(min_s_a[2])
+        action = Action(min_s_a[3])
+            
+        self.cards.add(upcard)
+        dealer_cs = self.cards.add(random.choice(all_cards))
+        
+        if has_usable_ace == True:
+            player.cards.add(Card.Ace)
+            rest = card_sum - 11 # 1 <= rest <= 10
+            player_cs = player.cards.add(Card.get_card_for_value(rest))
         else:
-            new_card = random.choice(all_cards)
-            pass
+            player.cards.add(Card.get_card_for_value(10))
+            rest = card_sum - 10 # 2 <= rest <= 11
+            if rest >= 10:
+                player.cards.add(Card.get_card_for_value(8))
+                player_cs = player.cards.add(Card.get_card_for_value(rest - 8))
+            else:
+                player_cs = player.cards.add(Card.get_card_for_value(rest))
+        assert player.cards.count_value() == card_sum
+        
+        # increment the visits counter for this state and action
+        self.stats[
+            (self.stats[:, 0] == card_sum) & \
+            (self.stats[:, 1] == upcard.value) & \
+            (self.stats[:, 2] == int(has_usable_ace)) & \
+            (self.stats[:, 3] == action.value), 4
+            ] += 1
+        
+        return dealer_cs, player_cs, action
+        
+    def deal_card(self, actor: Actor) -> CardsState:
+        all_cards = [c for c in list(Card)]
+        new_card = random.choice(all_cards)
         
         if VERBOSE == True:
             new_card_value = "1/11"
@@ -218,54 +208,40 @@ class ESPlayer(ESActor, Player):
     def __init__(self, stats):
         ESActor.__init__(self, stats)
         Player.__init__(self)
+        self.first_action = None
     
     def reset_cards(self):
         Player.reset_cards(self)
+        
+    def set_first_action(self, action: Action):
+        self.first_action = action
                         
-    def _get_next_action(self, card_sum: int, upcard: Card, has_usable_ace: bool) -> Action:
-        assert card_sum >= MIN_CARD_SUM and card_sum <= MAX_CARD_SUM
-        card = None
-        
-        # find the least taken action for the state
-        min_count, min_count_sa = 1e6, None
-        stats_for_state = self.get_stats_for_state(card_sum, upcard, has_usable_ace)
-        assert len(stats_for_state) == 2
-        for sa_c in stats_for_state:
-            if sa_c[4] < min_count:
-                min_count, min_count_sa = sa_c[4], sa_c   
-        action = Action(min_count_sa[3])
-        if card_sum == MAX_CARD_SUM: action = Action.Stick
-        
-        # increment the counter for the current state and chosen action
-        self.stats[
-            (self.stats[:, 0] == min_count_sa[0]) & \
-            (self.stats[:, 1] == min_count_sa[1]) & \
-            (self.stats[:, 2] == min_count_sa[2]) & \
-            (self.stats[:, 3] == min_count_sa[3]), 4] += 1
-        
-        return action
-        
     def take_turn(self, is_first_turn: bool=False) -> Action:
-        # chooses the next action (and card, if action = Hit) so as to balance the probabilities
-        p_card_sum = self.cards.count_value()
-        d_upcard_value = Card.get_card_for_value(
-            max(min(self.dealer.cards.upcard.card_value(), Card.max_cardvalue()), Card.min_cardvalue())
-        )
-        p_has_usable_ace = True if self.cards.has_usable_ace == 1 else False
+        assert self._policy.size != 0
         
         if is_first_turn == True:
             # only for the first (s, a) pair after _init(), we must ensure 
             # prob(s, a) is equal for all (s, a)
-            action = self._get_next_action(p_card_sum, d_upcard_value, p_has_usable_ace)
+            action = self.first_action
         else:
-            action = Action(random.choice(list(Action)))
+            p_card_sum = self.cards.count_value()
+            d_upcard_value = self.dealer.cards.upcard.card_value()
+            p_has_usable_ace = 1 if self.cards.has_usable_ace else 0
+            actions = self._policy[
+                (self._policy[:, 0] == p_card_sum) & \
+                (self._policy[:, 1] == d_upcard_value) & \
+                (self._policy[:, 2] == p_has_usable_ace)]
+            if len(actions) == 1: # deterministic policy pi(s)
+                action = Action.Hit if actions[0][3] == Action.Hit.value else Action.Stick
+            else: # stochastic policy pi(a|s)
+                action = Action(actions[0, 3]) if actions[0, 4] > actions[1, 4] else Action(actions[1, 3])
             
         if VERBOSE == True:
             print(".. {}.{}()".format(str(self).upper(), enum_to_string(action).upper()))
-        
-        if action == Action.Hit: 
+            
+        if action == Action.Hit:
             self.hit()
         else:
             self.stick()
 
-        return action
+        return action       

@@ -24,9 +24,10 @@ class Game():
         self.player_on_turn = True
         self._cl = self._init_cl()
         self.stats = Tracker().stats
+        self.exploring_starts = exploring_starts
         
         # initialize the Dealer
-        if exploring_starts == True:
+        if self.exploring_starts == True:
             self.dealer = ESDealer(self.stats)
         else:
             self.dealer = Dealer()
@@ -45,18 +46,25 @@ class Game():
         self.player.reset_cards()
         self.player_on_turn = True
         
-        # deal first 2 cards to dealer
-        self.dealer.set_cards_state(self.dealer.deal_card(self.dealer))
-        self.dealer.set_cards_state(self.dealer.deal_card(self.dealer))
+        if self.exploring_starts == True:
+            dealer_cs, player_cs, next_player_action = \
+                self.dealer.deal_init_cards(self.player)
+            self.dealer.set_cards_state(dealer_cs)
+            self.player.set_cards_state(player_cs) 
+            self.player.set_first_action(next_player_action)           
+        else:
+           # deal first 2 cards to dealer
+            self.dealer.set_cards_state(self.dealer.deal_card(self.dealer))
+            self.dealer.set_cards_state(self.dealer.deal_card(self.dealer))
         
-        # deal first 2 cards to player, and keep dealing further cards if needed 
-        # until MIN_CARD_SUM is reached
-        self.player.set_cards_state(self.dealer.deal_card(self.player))
-        self.player.set_cards_state(self.dealer.deal_card(self.player))
-        while self.player.cards.count_value() < MIN_CARD_SUM:
+            # deal first 2 cards to player, and keep dealing further cards if needed 
+            # until MIN_CARD_SUM is reached
             self.player.set_cards_state(self.dealer.deal_card(self.player))
+            self.player.set_cards_state(self.dealer.deal_card(self.player))
+            while self.player.cards.count_value() < MIN_CARD_SUM:
+                self.player.set_cards_state(self.dealer.deal_card(self.player))
         
-    def _actor_takes_turn(self) -> (Actor, Action):
+    def _actor_takes_turn(self, is_first_turn: bool=False) -> (Actor, Action):
         """Lets the actor take an action.
         Returns (dealer's card state, player's card state)
         """
@@ -64,7 +72,10 @@ class Game():
         actor = self.dealer if self.player_on_turn == False else self.player
         
         # let the actor decide on an action and induce an outcome
-        action = actor.take_turn()
+        if isinstance(actor, ESPlayer):
+            action = actor.take_turn(is_first_turn=is_first_turn)
+        else:
+            action = actor.take_turn()
         
         # see if a change in turns should take place
         if action == Action.Stick: self.player_on_turn = (not self.player_on_turn)
@@ -134,6 +145,7 @@ class Game():
         # it's for the player to take an action first
         self.player_on_turn = True
         
+        is_first_turn = True
         while True:
             # the player will keep hitting as long as their last action was Hit and their card count is <= 21
             
@@ -144,8 +156,12 @@ class Game():
                 self.player.cards.count_value(), 
                 self.dealer.cards.upcard.card_value(), # if an Ace, card_value() always returns 1
                 self.player.cards.has_usable_ace)
-        
-            actor, action = self._actor_takes_turn()
+
+            if isinstance(self.player, ESPlayer) == True:
+                actor, action = self._actor_takes_turn(is_first_turn=is_first_turn)
+            else:
+                actor, action = self._actor_takes_turn()
+            is_first_turn = False
             # register the action taken              
             self._playback.register_action(action.value)
             
