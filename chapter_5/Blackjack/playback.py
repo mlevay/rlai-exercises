@@ -68,8 +68,9 @@ class Playback():
         self.pi = pi
     
     def end(self):
-        valid_episodes = [len(ep.actors_k) > 0 for ep in self.episodes]
-        self.episodes = list(itertools.compress(self.episodes, valid_episodes))
+        # valid_episodes = [len(ep.actors_k) > 0 for ep in self.episodes]
+        # self.episodes = list(itertools.compress(self.episodes, valid_episodes))
+        pass
         
     def start_episode(self):
         self.episodes.append(Playback.Episode())

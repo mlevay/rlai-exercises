@@ -74,6 +74,12 @@ class MonteCarloInit():
         else:
             pi = self.get_pi_of_s_and_a(PLAYER_STICKS_AT, commit_to_disk=True)
         return pi
+    
+    def update_pi(self, pi):
+        """
+        Sets the policy dynamically (e.g. in between games)
+        """
+        self._pi = pi
 
     def load_pi(self) -> np.ndarray:
         """
@@ -87,24 +93,25 @@ class MonteCarloInit():
         """
         pickle(self.file_name_pi, pi)
         
-    def _play_one_game(self, playback: Playback, game: Game, cards: []=[]):
-        outcome = game.play(cards=cards)
+    def _play_one_game(self, playback: Playback, game: Game) -> Playback.Episode:
+        outcome, episode = game.play()
 
         if VERBOSE == True:
             print("Game outcome: {}".format(str(outcome).split(".")[-1]))
-            if len(playback.episodes) > 0:
-                print(playback.episodes[-1].actors_k)
-                print(playback.episodes[-1].states_k_sum)
-                print(playback.episodes[-1].states_k_upcard_value)
-                print(playback.episodes[-1].states_k_has_usable_ace)
-                print(playback.episodes[-1].actions_k)
-                print(playback.episodes[-1].rewards_k_plus_1)
+            print(episode.actors_k)
+            print(episode.states_k_sum)
+            print(episode.states_k_upcard_value)
+            print(episode.states_k_has_usable_ace)
+            print(episode.actions_k)
+            print(episode.rewards_k_plus_1)
             print()
+            
+        return episode
         
-    def compute_episodes(self, cards: [], num_episodes: int, commit_to_disk=False, pi: np.ndarray = None) -> np.ndarray:
+    def compute_episodes(self, num_episodes: int, commit_to_disk=False, pi: np.ndarray = None) -> np.ndarray:
         assert not (self.equal_probs == True and len(cards) > 0)
         
-        i, j = 0, 0
+        i = 0
         if pi is None: pi = self._pi # if no override, use the HIT20 policy previously initialized
         
         start_time = time.time()
@@ -114,19 +121,15 @@ class MonteCarloInit():
         game = Game(playback, equal_probs=self.equal_probs)
         take_size, curr_take = num_episodes/10, 1
         while i < num_episodes:
-            if len(cards) > j:
-                self._play_one_game(playback, game, cards=cards[j])
-                j += 1
-            else:
-                self._play_one_game(playback, game)
-            if len(playback.episodes[-1].actors_k) > 0: 
-                i += 1
-                if i == curr_take*take_size: 
-                    elapsed_time = time.time() - start_time
-                    print("{} percent done. Elapsed time: {}".format(
-                        10*curr_take, 
-                        timedelta(seconds=elapsed_time)))
-                    curr_take += 1
+            episode = self._play_one_game(playback, game)
+            
+            i += 1
+            if i == curr_take*take_size: 
+                elapsed_time = time.time() - start_time
+                print("{} percent done. Elapsed time: {}".format(
+                    10*curr_take, 
+                    timedelta(seconds=elapsed_time)))
+                curr_take += 1
         playback.end()
         
         elapsed_time = time.time() - start_time

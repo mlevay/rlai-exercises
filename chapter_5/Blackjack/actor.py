@@ -19,10 +19,10 @@ class Actor():
         self.reset_cards()
         
     def __repr__(self):
-        if isinstance(self, EqualProbabilityDealer) == True:
-            return "EP_" + ACTOR_DEALER
+        if isinstance(self, ESDealer) == True:
+            return "ES_" + ACTOR_DEALER
         elif isinstance(self, EqualProbabilityPlayer) == True:
-            return "EP_" + ACTOR_PLAYER
+            return "ES_" + ACTOR_PLAYER
         return ACTOR_DEALER if isinstance(self, Dealer) else ACTOR_PLAYER
         
     def hit(self):
@@ -46,10 +46,8 @@ class Dealer(Actor):
         super().__init__()
         self._deck = []
         
-    def set_deck(self, cards: []):
+    def set_deck(self):
         deck_size = 20
-        if cards:
-            self._deck = cards
         for i in range(max(0, len(self._deck)), deck_size):
             self._deck.append(random.choice(list(Card)))
             
@@ -133,7 +131,7 @@ class Tracker():
         stats[:, :-1] = params
         return stats
     
-class EqualProbabilityActor(Actor):
+class ESActor(Actor):
     def __init__(self, stats):
         Actor.__init__(self)
         self.stats = stats
@@ -148,9 +146,9 @@ class EqualProbabilityActor(Actor):
         ]
         return stats
     
-class EqualProbabilityDealer(EqualProbabilityActor, Dealer):
+class ESDealer(ESActor, Dealer):
     def __init__(self, stats):
-        EqualProbabilityActor.__init__(self, stats)
+        ESActor.__init__(self, stats)
         Dealer.__init__(self)
     
     def _get_least_visited_state_stats(self, cards: [], card_sum: int, upcard: Card, has_usable_ace: bool) -> np.ndarray:
@@ -215,9 +213,9 @@ class EqualProbabilityDealer(EqualProbabilityActor, Dealer):
         
         return actor.cards.add(new_card)
         
-class EqualProbabilityPlayer(EqualProbabilityActor, Player):
+class EqualProbabilityPlayer(ESActor, Player):
     def __init__(self, stats):
-        EqualProbabilityActor.__init__(self, stats)
+        ESActor.__init__(self, stats)
         Player.__init__(self)
         self._next_action = None
     

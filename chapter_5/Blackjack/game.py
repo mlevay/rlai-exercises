@@ -2,7 +2,7 @@ import enum
 import numpy as np
 
 from .actor import Action, Actor
-from .actor import Dealer, EqualProbabilityDealer, EqualProbabilityPlayer, Player
+from .actor import Dealer, ESDealer, EqualProbabilityPlayer, Player
 from .actor import Tracker
 from .card import Card, Cards, CardsState
 from .constants import ACTOR_DEALER, ACTOR_PLAYER
@@ -27,7 +27,7 @@ class Game():
         
         # initialize the Dealer
         if equal_probs == True:
-            self.dealer = EqualProbabilityDealer(self.stats)
+            self.dealer = ESDealer(self.stats)
         else:
             self.dealer = Dealer()
         self.dealer.dealer = self.dealer
@@ -41,7 +41,7 @@ class Game():
             self.player.set_policy(self._playback.pi)
         self.player.dealer = self.dealer
     
-    def _init(self, cards: []):
+    def _init(self):
         self.dealer.reset_cards()
         self.player.reset_cards()
         self.player_on_turn = True
@@ -121,15 +121,15 @@ class Game():
                     
         return reward, g_state[0], what_next
         
-    def play(self, cards: []) -> GameState:
-        self.dealer.set_deck(cards=cards)
+    def play(self) -> (GameState, Playback.Episode):
+        self.dealer.set_deck()
         self._playback.start_episode()
         
-        self._init(cards)
+        self._init()
         reward, game_state, what_next = self._compute(True)
         if what_next == Game.NextStep.Stop:
             self._playback.end_episode()
-            return game_state
+            return game_state, self._playback.episodes[-1]
         
         # it's for the player to take an action first
         self.player_on_turn = True
@@ -168,4 +168,4 @@ class Game():
                 break
 
         self._playback.end_episode()        
-        return game_state
+        return game_state, self._playback.episodes[-1]

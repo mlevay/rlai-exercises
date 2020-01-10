@@ -10,7 +10,7 @@ from Blackjack import mc_control, mc_init, mc_prediction
 from Blackjack import plot
 
 
-def compute_prediction(cards: [], num_episodes: int, episodes_from_disk=True, v_from_disk=True):
+def compute_prediction(num_episodes: int, episodes_from_disk=True, v_from_disk=True):
     assert not(episodes_from_disk == False and v_from_disk == True)
     
     mci = mc_init.MonteCarloInit()
@@ -18,7 +18,7 @@ def compute_prediction(cards: [], num_episodes: int, episodes_from_disk=True, v_
 
     # (1) compute or load the episodes with policy HIT20
     if episodes_from_disk == False:
-        episodes = mci.compute_episodes(cards, num_episodes, commit_to_disk=True)  
+        episodes = mci.compute_episodes(num_episodes, commit_to_disk=True)  
     else:
         episodes = mci.load_episodes()  
 
@@ -31,7 +31,7 @@ def compute_prediction(cards: [], num_episodes: int, episodes_from_disk=True, v_
     # plot the value function
     plot_v(v) 
     
-def compute_control_ES(cards: [], num_episodes: int, episodes_from_disk=True, pi_from_disk=True):
+def compute_control_ES(num_episodes: int, episodes_from_disk=True, pi_from_disk=True):
     assert not(episodes_from_disk == False and pi_from_disk == True)
     
     mci_equal_probs = mc_init.MonteCarloInit(soft_policy=False, equal_probs=True)
@@ -46,7 +46,7 @@ def compute_control_ES(cards: [], num_episodes: int, episodes_from_disk=True, pi
     
     # (3) compute or load the episodes, such that for each state, the taken actions have approx. equal probability
     if episodes_from_disk == False:
-        episodes = mci_equal_probs.compute_episodes([], num_episodes, commit_to_disk=True)
+        episodes = mci_equal_probs.compute_episodes(num_episodes, commit_to_disk=True)
     else:
         episodes = mci_equal_probs.load_episodes()
         
@@ -65,7 +65,7 @@ def compute_control_ES(cards: [], num_episodes: int, episodes_from_disk=True, pi
     # plot the value function
     plot_v(v)  
     
-def compute_control_on_policy(cards: [], num_episodes: int, episodes_from_disk=True, pi_from_disk=True):
+def compute_control_on_policy(num_episodes: int, episodes_from_disk=True, pi_from_disk=True):
     assert not(episodes_from_disk == False and pi_from_disk == True)
     
     mci = mc_init.MonteCarloInit(soft_policy=True, equal_probs=False)
@@ -80,7 +80,7 @@ def compute_control_on_policy(cards: [], num_episodes: int, episodes_from_disk=T
     
     # (3) compute or load the episodes, such that for each state, the taken actions have approx. equal probability
     if episodes_from_disk == False:
-        episodes = mci.compute_episodes([], num_episodes, commit_to_disk=True)
+        episodes = mci.compute_episodes(num_episodes, commit_to_disk=True)
     else:
         episodes = mci.load_episodes()
         
@@ -126,19 +126,5 @@ if __name__ == "__main__":
     # set the number of episodes (= Blackjack games) to be simulated.
     num_episodes = 500000
 
-    # optionally, provide a number of pre-set card decks to play with.
-    cards = []
-    # cards = [
-    #     [Card.Ten, Card.Four, Card.Queen, Card.Four, Card.Jack],
-    #     [Card.Nine, Card.Queen, Card.Nine, Card.Four, Card.Ace, Card.Five],
-    #     [Card.Ace, Card.King, Card.Eight, Card.Three],
-    #     [Card.Jack, Card.Five, Card.King, Card.Queen, Card.Six],
-    #     [Card.Jack, Card.Five, Card.King, Card.Queen, Card.Five, Card.Ace],
-    #     [Card.Ace, Card.Eight, Card.King, Card.Queen, Card.Two, Card.Ace, Card.Nine],
-    #     [Card.King, Card.Queen, Card.Jack, Card.Five, Card.Six],
-    #     [Card.King, Card.Queen, Card.Ace, Card.Eight, Card.Two],
-    #     [Card.King, Card.Two, Card.Ace, Card.Six, Card.Eight, Card.Six]
-    # ]
-
-    #compute_prediction(cards, num_episodes, episodes_from_disk=False, v_from_disk=False)
-    compute_control_on_policy(cards, num_episodes, episodes_from_disk=False, pi_from_disk=False)
+    #compute_prediction(num_episodes, episodes_from_disk=False, v_from_disk=False)
+    compute_control_on_policy(num_episodes, episodes_from_disk=False, pi_from_disk=False)
