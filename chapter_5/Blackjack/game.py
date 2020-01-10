@@ -2,7 +2,7 @@ import enum
 import numpy as np
 
 from .actor import Action, Actor
-from .actor import Dealer, ESDealer, EqualProbabilityPlayer, Player
+from .actor import Dealer, ESDealer, ESPlayer, Player
 from .actor import Tracker
 from .card import Card, Cards, CardsState
 from .constants import ACTOR_DEALER, ACTOR_PLAYER
@@ -19,14 +19,14 @@ class GameState(enum.Enum):
     PlayerWins = 2
 
 class Game():
-    def __init__(self, playback: Playback, equal_probs=False):
+    def __init__(self, playback: Playback, exploring_starts=False):
         self._playback = playback     
         self.player_on_turn = True
         self._cl = self._init_cl()
         self.stats = Tracker().stats
         
         # initialize the Dealer
-        if equal_probs == True:
+        if exploring_starts == True:
             self.dealer = ESDealer(self.stats)
         else:
             self.dealer = Dealer()
@@ -34,11 +34,10 @@ class Game():
         # dealer policy is hard-coded (HIT17)
         
         # initialize the Player 
-        if equal_probs == True:
-            self.player = EqualProbabilityPlayer(self.stats)
+        if exploring_starts == True:
+            self.player = ESPlayer(self.stats)
         else:
             self.player = Player()
-            self.player.set_policy(self._playback.pi)
         self.player.dealer = self.dealer
     
     def _init(self):
@@ -121,11 +120,12 @@ class Game():
                     
         return reward, g_state[0], what_next
         
-    def play(self) -> (GameState, Playback.Episode):
+    def play(self, pi: np.ndarray) -> (GameState, Playback.Episode):
         self.dealer.set_deck()
+        self.player.set_policy(pi)
         self._playback.start_episode()
-        
         self._init()
+        
         reward, game_state, what_next = self._compute(True)
         if what_next == Game.NextStep.Stop:
             self._playback.end_episode()

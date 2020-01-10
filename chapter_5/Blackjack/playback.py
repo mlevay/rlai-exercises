@@ -62,15 +62,6 @@ class Playback():
     def __init__(self):
         """Episodes for t=0, t=1, ..., t=T-1"""
         self.episodes = []
-        self.pi = np.array([])
-        
-    def start(self, pi):
-        self.pi = pi
-    
-    def end(self):
-        # valid_episodes = [len(ep.actors_k) > 0 for ep in self.episodes]
-        # self.episodes = list(itertools.compress(self.episodes, valid_episodes))
-        pass
         
     def start_episode(self):
         self.episodes.append(Playback.Episode())

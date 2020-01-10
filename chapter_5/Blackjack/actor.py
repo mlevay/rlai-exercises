@@ -21,7 +21,7 @@ class Actor():
     def __repr__(self):
         if isinstance(self, ESDealer) == True:
             return "ES_" + ACTOR_DEALER
-        elif isinstance(self, EqualProbabilityPlayer) == True:
+        elif isinstance(self, ESPlayer) == True:
             return "ES_" + ACTOR_PLAYER
         return ACTOR_DEALER if isinstance(self, Dealer) else ACTOR_PLAYER
         
@@ -137,7 +137,7 @@ class ESActor(Actor):
         self.stats = stats
     
     def get_stats_for_state(
-        self, card_sum: int, upcard: Card, has_usable_ace: bool) -> []:
+        self, card_sum: int, upcard: Card, has_usable_ace: bool) -> np.ndarray:
         upcard, has_usable_ace = upcard.value, int(has_usable_ace)
         stats = self.stats[
             (self.stats[:, 0] == card_sum) & \
@@ -183,24 +183,25 @@ class ESDealer(ESActor, Dealer):
         all_cards_but_ace = [c for c in all_cards if c != Card.Ace]
         
         card_sum = actor.cards.count_value()
-        if isinstance(actor, EqualProbabilityPlayer) == True:
-            if actor.cards.count_value() < MIN_CARD_SUM - 1:
+        if isinstance(actor, ESPlayer) == True:
+            if card_sum < MIN_CARD_SUM - 1 or card_sum >= MIN_CARD_SUM:
                 new_card = random.choice(all_cards)
             else:
-                # we need the Player to get an Ace approx. 50% of the time post-_init(); 
-                # find the least visited state and action to which the Player can still get from here
+                # only for the first (s, a) pair after _init(), we must ensure 
+                # prob(s, a) is equal for all (s, a)
+                # => find the least visited state and action to which the Player can still get from here
                 actor_card_sum = actor.cards.count_value() 
                 least_visited_sa = self._get_least_visited_state_stats(
                     actor.cards._cards,
                     actor_card_sum,
                     actor.cards.upcard,
                     actor.cards.has_usable_ace)
+                
                 # choose the card so that the Player's next state is as found above
                 new_card_value = least_visited_sa[0] - actor_card_sum 
                 if actor.cards.has_usable_ace == True and new_card_value <= 0:
                     new_card_value += 10
                 new_card = Card.get_card_for_value(new_card_value)
-                actor.set_next_action(least_visited_sa[3])
         else:
             new_card = random.choice(all_cards)
             pass
@@ -213,18 +214,13 @@ class ESDealer(ESActor, Dealer):
         
         return actor.cards.add(new_card)
         
-class EqualProbabilityPlayer(ESActor, Player):
+class ESPlayer(ESActor, Player):
     def __init__(self, stats):
         ESActor.__init__(self, stats)
         Player.__init__(self)
-        self._next_action = None
     
     def reset_cards(self):
         Player.reset_cards(self)
-        self._next_action = None
-        
-    def set_next_action(self, action: Action):
-        self._next_action = action
                         
     def _get_next_action(self, card_sum: int, upcard: Card, has_usable_ace: bool) -> Action:
         assert card_sum >= MIN_CARD_SUM and card_sum <= MAX_CARD_SUM
@@ -249,13 +245,20 @@ class EqualProbabilityPlayer(ESActor, Player):
         
         return action
         
-    def take_turn(self) -> Action:
+    def take_turn(self, is_first_turn: bool=False) -> Action:
         # chooses the next action (and card, if action = Hit) so as to balance the probabilities
         p_card_sum = self.cards.count_value()
-        d_upcard_value = Card.get_card_for_value(max(min(self.dealer.cards.upcard.card_value(), Card.max_cardvalue()), Card.min_cardvalue()))
+        d_upcard_value = Card.get_card_for_value(
+            max(min(self.dealer.cards.upcard.card_value(), Card.max_cardvalue()), Card.min_cardvalue())
+        )
         p_has_usable_ace = True if self.cards.has_usable_ace == 1 else False
         
-        action = self._get_next_action(p_card_sum, d_upcard_value, p_has_usable_ace)
+        if is_first_turn == True:
+            # only for the first (s, a) pair after _init(), we must ensure 
+            # prob(s, a) is equal for all (s, a)
+            action = self._get_next_action(p_card_sum, d_upcard_value, p_has_usable_ace)
+        else:
+            action = Action(random.choice(list(Action)))
             
         if VERBOSE == True:
             print(".. {}.{}()".format(str(self).upper(), enum_to_string(action).upper()))
