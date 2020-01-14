@@ -11,6 +11,7 @@ from .constants import PICKLE_FILE_NAME_INIT_EPISODES, PICKLE_FILE_NAME_INIT_PI
 from .constants import PLAYER_STICKS_AT, VERBOSE
 from .game import Game
 from .playback import Playback
+from .stats import State, Stats
 
 
 class MonteCarloInit():
@@ -18,9 +19,10 @@ class MonteCarloInit():
     (1) Initializes policy tables (random epsilon-soft policy or HIT20 policy);
     (2) Computes episodes (= simulated Blackjack games) for use with Monte Carlo.
     """
-    def __init__(self, exploring_starts: bool=False):
+    def __init__(self, stats: Stats, exploring_starts: bool=False):
         self.exploring_starts = exploring_starts
         self.file_name_episodes, self.file_name_pi = self._get_file_paths()
+        self.stats = stats
     
     def _get_file_paths(self) -> (str, str):
         eps_file_path, pi_file_path = "", "" 
@@ -71,8 +73,14 @@ class MonteCarloInit():
         Saves the policy function to disk.
         """
         pickle(self.file_name_pi, pi)
+    
+    def start_compute(self, commit_to_disk: bool=False):
+        self.commit_to_disk = commit_to_disk
         
-    def _play_one_game(self, playback: Playback, game: Game, pi: np.ndarray) -> Playback.Episode:
+        self.playback = Playback(self.stats)
+        self.game = Game(self.playback, exploring_starts=self.exploring_starts)
+        
+    def _play_one_game(self, pi: np.ndarray) -> Playback.Episode:
         outcome, episode = game.play(pi)
 
         if VERBOSE == True:
@@ -87,26 +95,11 @@ class MonteCarloInit():
             
         return episode
     
-    def start_compute(self, commit_to_disk: bool=False):
-        self.commit_to_disk = commit_to_disk
-        
-        self.playback = Playback()
-        self.game = Game(self.playback, exploring_starts=self.exploring_starts)
-    
-    def end_compute(self):
-        if self.exploring_starts == True:
-            print("Stats:")
-            for sa_c in self.game.player.stats:
-                print("state=[{}, {}, {}], action={}, count={}".format(
-                    sa_c[0], sa_c[1], sa_c[2], sa_c[3], sa_c[4]))
-                
-        if self.commit_to_disk == True: self.save_episodes(self.playback.episodes)
-    
     def compute_episode(self, pi: np.ndarray) -> np.ndarray:
         """
         Computes and returns a single episode (=Blackjack game) with the given policy.
         """
-        episode = self._play_one_game(self.playback, self.game, pi)
+        episode = self._play_one_game(pi)
         
         if VERBOSE == True:
             print("Episode:")
@@ -119,6 +112,15 @@ class MonteCarloInit():
             print()
             
         return episode
+    
+    def end_compute(self):
+        if self.exploring_starts == True:
+            print("Stats:")
+            for sa_c in self.game.player.stats:
+                print("state=[{}, {}, {}], action={}, count={}".format(
+                    sa_c[0], sa_c[1], sa_c[2], sa_c[3], sa_c[4]))
+                
+        if self.commit_to_disk == True: self.save_episodes(self.playback.episodes)
     
     def load_episodes(self) -> np.ndarray:
         """

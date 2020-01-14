@@ -8,6 +8,7 @@ from .card import Card, Cards, CardsState
 from .constants import ACTOR_DEALER, ACTOR_PLAYER
 from .constants import MIN_CARD_SUM, MAX_CARD_SUM, VERBOSE
 from .playback import Playback
+from .stats import State, Stats
 
 
 class GameState(enum.Enum):

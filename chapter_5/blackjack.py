@@ -9,13 +9,15 @@ from Blackjack.constants import MAX_CARD_SUM, MIN_CARD_SUM, PLAYER_STICKS_AT
 from Blackjack import game
 from Blackjack import mc_control, mc_init, mc_prediction
 from Blackjack import plot
+from Blackjack import stats as bjstats
 
 
 def compute_prediction(num_episodes: int, episodes_from_disk: bool=True, v_from_disk: bool=True):
     assert not(episodes_from_disk == False and v_from_disk == True)
     
+    stats = bjstats.MCPredictionStats()
     # compute or load the episodes with fixed r/o policy HIT20
-    mci = mc_init.MonteCarloInit()
+    mci = mc_init.MonteCarloInit(stats)
     if episodes_from_disk == True:
         episodes = mci.load_episodes()  
     else:
@@ -30,7 +32,7 @@ def compute_prediction(num_episodes: int, episodes_from_disk: bool=True, v_from_
         pb.update(100)
 
     # estimate or load the state value function for the episodes
-    mcp = mc_prediction.MonteCarloPrediction()
+    mcp = mc_prediction.MonteCarloPrediction(stats)
     if v_from_disk == True:
         v = mcp.load_v()
     else:
@@ -168,6 +170,6 @@ if __name__ == "__main__":
     # set the number of episodes (= Blackjack games) to be simulated.
     num_episodes = 500000
 
-    #compute_prediction(num_episodes, episodes_from_disk=False, v_from_disk=False)
-    compute_control_ES(num_episodes, pi_and_q_from_disk=False)
+    compute_prediction(num_episodes, episodes_from_disk=True, v_from_disk=False)
+    #compute_control_ES(num_episodes, pi_and_q_from_disk=True)
     #compute_control_on_policy(num_episodes, pi_and_q_from_disk=False)

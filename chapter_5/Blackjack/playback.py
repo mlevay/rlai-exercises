@@ -4,6 +4,7 @@ import pickle
 
 from .common import pickle, unpickle
 from .constants import MIN_CARD_SUM
+from .stats import Stats
 
 
 class Playback():
@@ -59,9 +60,10 @@ class Playback():
             self.actions_k = list(itertools.compress(self.actions_k, valid_turns))
             self.rewards_k_plus_1 = list(itertools.compress(self.rewards_k_plus_1, valid_turns))
             
-    def __init__(self):
+    def __init__(self, stats: Stats):
         """Episodes for t=0, t=1, ..., t=T-1"""
         self.episodes = []
+        self.stats = stats
         
     def start_episode(self):
         self.episodes.append(Playback.Episode())
