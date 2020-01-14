@@ -11,7 +11,7 @@ from .constants import PICKLE_FILE_NAME_INIT_EPISODES, PICKLE_FILE_NAME_INIT_PI
 from .constants import PLAYER_STICKS_AT, VERBOSE
 from .game import Game
 from .playback import Playback
-from .stats import State, Stats
+from .stats import Stats, MCControlESStats
 
 
 class MonteCarloInit():
@@ -81,7 +81,7 @@ class MonteCarloInit():
         self.game = Game(self.playback, exploring_starts=self.exploring_starts)
         
     def _play_one_game(self, pi: np.ndarray) -> Playback.Episode:
-        outcome, episode = game.play(pi)
+        outcome, episode = self.game.play(pi)
 
         if VERBOSE == True:
             print("Game outcome: {}".format(str(outcome).split(".")[-1]))
@@ -116,9 +116,10 @@ class MonteCarloInit():
     def end_compute(self):
         if self.exploring_starts == True:
             print("Stats:")
-            for sa_c in self.game.player.stats:
+            for sa_c in self.stats:
                 print("state=[{}, {}, {}], action={}, count={}".format(
-                    sa_c[0], sa_c[1], sa_c[2], sa_c[3], sa_c[4]))
+                    sa_c[Stats.COL_CARD_SUM], sa_c[Stats.COL_UPCARD], sa_c[Stats.COL_HAS_USABLE_ACE], \
+                    sa_c[MCControlESStats.COL_A], sa_c[MCControlESStats.COL_START_VISITS]))
                 
         if self.commit_to_disk == True: self.save_episodes(self.playback.episodes)
     

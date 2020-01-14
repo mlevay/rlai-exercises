@@ -42,13 +42,15 @@ def compute_prediction(num_episodes: int, episodes_from_disk: bool=True, v_from_
     plot_v(v) 
     
 def compute_control_ES(num_episodes: int, pi_and_q_from_disk: bool=True):
-    mcc = mc_control.MonteCarloControl_ES_FirstVisit()
+    stats = bjstats.MCControlESStats()
+    
+    mcc = mc_control.MonteCarloControl_ES_FirstVisit(stats)
     if pi_and_q_from_disk == True:
         # load the optimal policy and action value function for the episodes
         pi, q = mcc.load_pi(), mcc.load_q()
     else:
         # load the deterministic policy, initialized at HIT20
-        mci = mc_init.MonteCarloInit(exploring_starts=True)
+        mci = mc_init.MonteCarloInit(stats, exploring_starts=True)
         pi = mci.init_pi_of_s(PLAYER_STICKS_AT)
         
         # compute the episodes with exploring starts    
@@ -67,7 +69,7 @@ def compute_control_ES(num_episodes: int, pi_and_q_from_disk: bool=True):
         pb.update(100)
             
     # initialize the state value function with v(s)=0. for all s
-    mcp = mc_prediction.MonteCarloPrediction()
+    mcp = mc_prediction.MonteCarloPrediction(stats)
     v = mcp.init_v()
     
     # compute the state value function from the action value function
@@ -80,13 +82,15 @@ def compute_control_ES(num_episodes: int, pi_and_q_from_disk: bool=True):
     plot_v(v)  
     
 def compute_control_on_policy(num_episodes: int, pi_and_q_from_disk=True):
-    mcc = mc_control.MonteCarloControl_OnP_FirstVisit()
+    stats = bjstats.MCControlOnPolicyStats()
+    
+    mcc = mc_control.MonteCarloControl_OnP_FirstVisit(stats)
     if pi_and_q_from_disk == True:
         # load the optimal policy and action value function for the episodes
         pi, q = mcc.load_pi(), mcc.load_q()
     else:        
         # load the stochastic policy, initialized at epsilon-soft HIT20
-        mci = mc_init.MonteCarloInit(exploring_starts=False)
+        mci = mc_init.MonteCarloInit(stats, exploring_starts=False)
         pi = mci.init_pi_of_s_and_a(PLAYER_STICKS_AT)
         
         # compute the episodes with exploring starts    
@@ -170,6 +174,6 @@ if __name__ == "__main__":
     # set the number of episodes (= Blackjack games) to be simulated.
     num_episodes = 500000
 
-    compute_prediction(num_episodes, episodes_from_disk=True, v_from_disk=False)
-    #compute_control_ES(num_episodes, pi_and_q_from_disk=True)
+    #compute_prediction(num_episodes, episodes_from_disk=True, v_from_disk=True)
+    compute_control_ES(num_episodes, pi_and_q_from_disk=False)
     #compute_control_on_policy(num_episodes, pi_and_q_from_disk=False)

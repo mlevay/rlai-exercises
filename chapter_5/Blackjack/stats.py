@@ -1,9 +1,10 @@
 from abc import ABCMeta, abstractmethod
 import functools
 import numpy as np
+import random
 from typing import Any, List, NewType, Tuple, Type, TypeVar, Union
 
-from .actor import Action
+from .action import Action
 from .card import Card
 from .constants import EPSILON, MIN_CARD_SUM, MAX_CARD_SUM, PLAYER_STICKS_AT
 
@@ -26,7 +27,7 @@ class Stats(object, metaclass=ABCMeta):
         s = [0, 0, 0]
         if card_sum != None: s[0] = card_sum
         if upcard != None: 
-            if isinstance(upcard, Card): upcard = upcard.value
+            if isinstance(upcard, Card): upcard = upcard.card_value()
             s[1] = upcard
         if has_usable_ace != None:
             if isinstance(has_usable_ace, bool): has_usable_ace = int(has_usable_ace)
@@ -110,7 +111,8 @@ class Stats(object, metaclass=ABCMeta):
     def _get_stats(self, state: State = None, action: Union[Action, int] = None, 
                    column_a: int = -1) -> np.ndarray:
         """
-        Returns the current state or state, action pair, or alternatively the whole stats.
+        Returns the current state or state-action pair, or alternatively the whole stats.
+        It doesn't do any duplicate filtering.
         """
         assert not(action != None and column_a < 0)
         
@@ -120,6 +122,12 @@ class Stats(object, metaclass=ABCMeta):
     def _set_stats(self, stats: np.ndarray, cols_to_set: Union[List[int], int]=None, 
                    state: State=None, action: Union[Action, int]=None, column_a: int=-1, 
                    dupl=False):
+        """
+        Sets the stats for a state or state-action pair, or alternatively the whole stats.
+        Important to be careful with overwriting too many columns - should be limited to 
+        a sub-set of column indices by specifying them in cols_to_set. 
+        It creates duplicate values without checking.
+        """
         if cols_to_set != None and isinstance(cols_to_set, int) == True: cols_to_set = [cols_to_set]
         
         assert not(state == None and action != None)
@@ -131,23 +139,43 @@ class Stats(object, metaclass=ABCMeta):
         if state == None and action == None:
             self._stats = stats
         else:
-            stats = np.atleast_2d(stats)
             if action == None:
                 indices = np.argwhere(
-                    (self._stats[:, Stats.COL_CARD_SUM] == state[0]) & \
-                    (self._stats[:, Stats.COL_UPCARD] == state[1]) & \
-                    (self._stats[:, Stats.COL_HAS_USABLE_ACE] == state[2]))[:, 0]
+                    (self._stats[:, Stats.COL_CARD_SUM].astype(int) == state[0]) & \
+                    (self._stats[:, Stats.COL_UPCARD].astype(int) == state[1]) & \
+                    (self._stats[:, Stats.COL_HAS_USABLE_ACE].astype(int) == state[2]))[:, 0]
             else:
                 if isinstance(action, Action): action = action.value
                 indices = np.argwhere(
-                    (self._stats[Stats.COL_CARD_SUM] == state[0]) & \
-                    (self._stats[Stats.COL_UPCARD] == state[1]) & \
-                    (self._stats[Stats.COL_HAS_USABLE_ACE] == state[2]) & \
-                    (self._stats[column_a] == action))[:, 0]
+                    (self._stats[:, Stats.COL_CARD_SUM].astype(int) == state[0]) & \
+                    (self._stats[:, Stats.COL_UPCARD].astype(int) == state[1]) & \
+                    (self._stats[:, Stats.COL_HAS_USABLE_ACE].astype(int) == state[2]) & \
+                    (self._stats[:, column_a].astype(int) == action))[:, 0]
                 
             rows = self._stats[indices]
+            target_rows, target_cols = len(rows), len(cols_to_set)
+            if isinstance(stats, List) == False: stats = [stats] 
+            stats = np.array(stats)
+            if len(stats.shape) == 1: # 1d array
+                assert target_cols == 1 or target_rows in [1, 2]
+                assert stats.shape[0] == target_cols or stats.shape[0] == target_rows or \
+                    stats.shape[0]*2 == target_rows
+                
+                if stats.shape[0] != target_cols:
+                    if stats.shape[0]*2 == target_rows: 
+                        stats = np.repeat(stats, [2], axis=0) # (1,) -> (1, 1), [row] -> [[row],[row]]
+                    else: 
+                        stats = np.array([stats]).T # (1,) -> (1, 1), [m, m, m] -> [[m], [m], [m]]]
+                else:
+                    stats = np.array([stats]) # (1,) -> (1, 1), [m, m, m] -> [[m, m, m]]
+            elif len(stats.shape) == 2:
+                assert (stats.shape[0] == target_rows or stats.shape[0]*2 == target_rows) and stats.shape[1] == target_cols
+                
+                if stats.shape[0]*2 == target_rows:
+                    stats = np.repeat(stats, [2], axis=0)
+                    
             rows[:, cols_to_set] = stats
-            self._stats[indices] = rows
+            self._stats[indices, :] = rows
         
     def _set_values(self, values):
         self._values = values
@@ -207,7 +235,7 @@ class Stats(object, metaclass=ABCMeta):
     def _get_q(self, state: State, action: Union[Action, int], column_a: int, column_q: int) -> float:
         assert not(state == None or state[0] == None or state[1] == None or state[2] == None or action == None)
         
-        return self._unpack_scalar(self._get_stats(state, action, column_a=column_a)[:, column_q])
+        return self._unpack_scalar(self._get_stats(state, action, column_a=column_a)[column_q])
         
     def _set_q(self, state: State, action: Union[Action, int], column_a: int, column_q: int, value: float):
         assert not(state == None or state[0] == None or state[1] == None or state[2] == None or action == None or value == None)
@@ -238,23 +266,20 @@ class Stats(object, metaclass=ABCMeta):
         self._set_stats(value, column_pi, state=state, action=action, column_a=column_a)
             
     def _get_visit_count(self, state: State, column_visits: int, 
-                    action: Union[Action, int]=None, column_a: int=-1, 
-                    dupl: bool=False) -> int:
+                    action: Union[Action, int], column_a: int) -> int:
         assert not(state == None or state[0] == None or state[1] == None or state[2] == None)
-        assert not(action != None and column_a < 0)
+        assert column_a >= 0
 
         return int(self._unpack_scalar(
-                    self._get_stats(state, action, column_a=column_a)[column_visits], 
-                    dupl=dupl))
+                    self._get_stats(state, action, column_a=column_a)[column_visits]))
                     
     def _increment_visit_count(self, state: State, column_visits: int, 
-                    action: Union[Action, int]=None, column_a: int=-1, 
-                    dupl: bool=False):
+                    action: Union[Action, int], column_a):
         assert not(state == None or state[0] == None or state[1] == None or state[2] == None)
-        assert not(action != None and column_a < 0)
+        assert column_a >= 0
 
-        incr = 1 if dupl == False else [1, 1]
-        if action != None and isinstance(action, Action): action = action.value
+        incr = 1
+        if isinstance(action, Action): action = action.value
         stats = self._get_stats(state, action, column_a=column_a)[column_visits]
         self._set_stats(stats + incr, cols_to_set=column_visits, state=state, action=action, column_a=column_a)
     
@@ -315,14 +340,14 @@ class MCPredictionStats(Stats):
 class MCControlESStats(Stats):
     COL_A, COL_Q_OF_S_A, COL_PI_OF_S = 3, 4, 5
     COL_VISITS, COL_START_VISITS = 6, 7
-    COL_V_OF_S = 8
+    COL_V_OF_S, COL_PROB = 8, 9
     
     def __init__(self):
         super().__init__()
         self._cols = [Stats.COL_CARD_SUM, Stats.COL_UPCARD, Stats.COL_HAS_USABLE_ACE, 
                       MCControlESStats.COL_A, MCControlESStats.COL_Q_OF_S_A, MCControlESStats.COL_PI_OF_S, 
                       MCControlESStats.COL_VISITS, MCControlESStats.COL_START_VISITS,
-                      MCControlESStats.COL_V_OF_S]
+                      MCControlESStats.COL_V_OF_S, MCControlESStats.COL_PROB]
         self._init_stats()
         
     def _init_stats(self):
@@ -331,11 +356,11 @@ class MCControlESStats(Stats):
         all_has_usable_ace_states = [0, 1]
         all_actions = [Action.Stick.value, Action.Hit.value]
         
-        self._set_stats(np.zeros(
-            (len(all_card_sums)*len(all_upcards)*len(all_has_usable_ace_states)*len(all_actions), 9), 
-            dtype=float))
+        self._stats = np.zeros(
+            (len(all_card_sums)*len(all_upcards)*len(all_has_usable_ace_states)*len(all_actions), 10), 
+            dtype=float)
         self._stats[:, :4] = np.array(np.meshgrid(
-            all_card_sums, all_upcards, all_usable_ace_states, all_actions)).T.reshape(-1, 4)
+            all_card_sums, all_upcards, all_has_usable_ace_states, all_actions)).T.reshape(-1, 4)
         
         # initialize pi(s) with HIT21
         self._init_pi_of_s(MCControlESStats.COL_PI_OF_S)
@@ -343,13 +368,19 @@ class MCControlESStats(Stats):
     def get_stats(self, card_sum: int=None, upcard: Union[Card, int]=None, 
                   has_usable_ace: Union[bool, int]=None, 
                   action: Union[Action, int]=None) -> np.ndarray:
-        s, a = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action)
+        s, a = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action=action)
         return self._get_stats(state=s, action=a, column_a=MCControlESStats.COL_A)
+    
+    def get_pis(self):
+        return self._get_stats()[:, [
+            Stats.COL_CARD_SUM, Stats.COL_UPCARD, Stats.COL_HAS_USABLE_ACE, 
+            MCControlESStats.COL_A, MCControlESStats.COL_Q_OF_S_A, MCControlESStats.COL_PI_OF_S]]
     
     def get_qs(self):
         return self._get_stats()[:, [
             Stats.COL_CARD_SUM, Stats.COL_UPCARD, Stats.COL_HAS_USABLE_ACE, 
-            MCPredictionStats.COL_A, MCPredictionStats.COL_Q_OF_S_A]]
+            MCControlESStats.COL_A, MCControlESStats.COL_Q_OF_S_A, MCControlESStats.COL_PI_OF_S, 
+            MCControlESStats.COL_VISITS]]
         
     def get_q(self, card_sum: int, upcard: Union[Card, int], 
               has_usable_ace: Union[bool, int], action: Union[Action, int]) -> float:
@@ -359,47 +390,69 @@ class MCControlESStats(Stats):
     def set_q(self, card_sum: int, upcard: Union[Card, int], 
               has_usable_ace: Union[bool, int], action: Union[Action, int], value: float):
         s, a = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action=action)
-        self._set_q(s, self, MCControlESStats.COL_A, MCControlESStats.COL_Q_OF_S_A, value)
+        self._set_q(s, a, MCControlESStats.COL_A, MCControlESStats.COL_Q_OF_S_A, value)
         
     def get_pi(self, card_sum: int, upcard: Union[Card, int], 
               has_usable_ace: Union[bool, int]) -> Action:
-        s, _ = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action=action)
+        s, _ = self._resolve_state_and_action(card_sum, upcard, has_usable_ace)
         return self._get_pi(s, MCControlESStats.COL_PI_OF_S, dupl=True)
     
     def set_pi(self, card_sum: int, upcard: Union[Card, int], 
               has_usable_ace: Union[bool, int], value: Action):
-        s, _ = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action=action)
-        self.set_pi(s, MCControlESStats.COL_PI_OF_S, value, dupl=True)
+        s, _ = self._resolve_state_and_action(card_sum, upcard, has_usable_ace)
+        self._set_pi(s, MCControlESStats.COL_PI_OF_S, value, dupl=True)
         
     def get_v(self, card_sum: int, upcard: Union[Card, int], 
               has_usable_ace: Union[bool, int]) -> float:
-        s, _a = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action=action)
+        s, _a = self._resolve_state_and_action(card_sum, upcard, has_usable_ace)
         return self._get_v(s, MCControlESStats.COL_V_OF_S, dupl=True)
     
     def set_v(self, card_sum: int, upcard: Union[Card, int], 
               has_usable_ace: Union[bool, int], value: float):
-        s, _ = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action=action)
+        s, _ = self._resolve_state_and_action(card_sum, upcard, has_usable_ace)
         self._set_v(s, MCControlESStats.COL_V_OF_S, value, dupl=True)
         
     def get_visit_count(self, card_sum: int, upcard: Union[Card, int], 
-              has_usable_ace: Union[bool, int]):
-        s, _ = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action=action)
-        return self._get_visit_count(s, MCControlESStats.COL_VISITS, dupl=True)
+              has_usable_ace: Union[bool, int], action: Union[Action, int]):
+        s, a = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action=action)
+        return self._get_visit_count(s, MCControlESStats.COL_VISITS, a, MCControlESStats.COL_A)
     
     def increment_visit_count(self, card_sum: int, upcard: Union[Card, int], 
-              has_usable_ace: Union[bool, int]):
-        s, _ = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action=action)
-        self._increment_visit(s, MCControlESStats.COL_VISITS, dupl=True)
+              has_usable_ace: Union[bool, int], action: Union[Action, int]):
+        s, a = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action=action)
+        self._increment_visit_count(s, MCControlESStats.COL_VISITS, a, MCControlESStats.COL_A)
         
     def get_start_visits(self, card_sum: int, upcard: Union[Card, int], 
-              has_usable_ace: Union[bool, int], action: Union[Action, int]=None, column_a: int=-1):
+              has_usable_ace: Union[bool, int], action: Union[Action, int]):
         s, a = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action=action)
-        return self._get_visit_count(s, MCControlESStats.COL_START_VISITS, action=a, column_a=column_a, dupl=True)
+        return self._get_visit_count(s, MCControlESStats.COL_START_VISITS, a, MCControlESStats.COL_A)
     
-    def increment_start_visits(self, card_sum: int, upcard: Union[Card, int], 
-              has_usable_ace: Union[bool, int], action: Union[Action, int]=None, column_a: int=-1):
+    def increment_start_visit_count(self, card_sum: int, upcard: Union[Card, int], 
+              has_usable_ace: Union[bool, int], action: Union[Action, int]):
         s, a = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action=action)
-        self._increment_visit(s, MCControlESStats.COL_START_VISITS, action=a, column_a=column_a, dupl=True)
+        self._increment_visit_count(s, MCControlESStats.COL_START_VISITS, a, MCControlESStats.COL_A)
+    
+    def get_state_and_action_with_min_start_visits(self) -> (int, Card, bool, Action):
+        min_index = np.argmin(self._stats[:, MCControlESStats.COL_START_VISITS], axis=0)
+        min_count = self._stats[min_index, MCControlESStats.COL_START_VISITS]
+        stats = self._stats[self._stats[:, MCControlESStats.COL_START_VISITS] == min_count, :]
+        min_s_a = random.sample(list(stats), 1)[0]
+
+        card_sum = int(min_s_a[Stats.COL_CARD_SUM])
+        upcard = Card.get_card_for_value(min(min_s_a[Stats.COL_UPCARD], 10)) # TODO: check if min is still necessary
+        has_usable_ace = bool(min_s_a[Stats.COL_HAS_USABLE_ACE])
+        action = Action(min_s_a[MCControlESStats.COL_A])
+        
+        return card_sum, upcard, has_usable_ace, action
+    
+    def set_v_and_probs(self, card_sum: int, upcard: Union[Card, int], has_usable_ace: Union[bool, int], 
+              prob_stick: float, prob_hit: float, v: float):
+        self._set_stats([prob_stick, v], [MCControlESStats.COL_PROB, MCControlESStats.COL_V_OF_S],
+                                (card_sum, dealer_upcard, has_usable_ace), 
+                                action=0, column_a=MCControlESStats.COL_A, dupl=True)
+        self._set_stats([prob_hit, v], [MCControlESStats.COL_PROB, MCControlESStats.COL_V_OF_S],
+                                (card_sum, dealer_upcard, has_usable_ace), 
+                                action=1, column_a=MCControlESStats.COL_A, dupl=True)
     
 class MCControlOnPolicyStats(Stats):
     COL_A, COL_Q_OF_S_A, COL_PI_OF_S_A, COL_VISITS = 3, 4, 5, 6

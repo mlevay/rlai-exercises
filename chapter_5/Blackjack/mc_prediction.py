@@ -40,9 +40,9 @@ class MonteCarloPrediction():
             for i in range(len(ep.actors_k) - 1, -1, -1):
                 cs, uc, hua = \
                     ep.states_k_sum[i], ep.states_k_upcard_value[i], ep.states_k_has_usable_ace[i]
-                rewards_k_plus_1 = ep.rewards_k_plus_1[i]
+                r = ep.rewards_k_plus_1[i]
                 
-                G = GAMMA*G + rewards_k_plus_1
+                G = GAMMA*G + r
                 prev_states_in_ep = [[a, b, c] for a, b, c in zip(
                         ep.states_k_sum[:i], ep.states_k_upcard_value[:i], ep.states_k_has_usable_ace[:i])]
                 if not ([cs, uc, hua] in prev_states_in_ep):

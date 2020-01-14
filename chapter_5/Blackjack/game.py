@@ -1,9 +1,8 @@
 import enum
 import numpy as np
 
-from .actor import Action, Actor
-from .actor import Dealer, ESDealer, ESPlayer, Player
-from .actor import Tracker
+from .action import Action
+from .actor import Actor, Dealer, ESDealer, ESPlayer, Player
 from .card import Card, Cards, CardsState
 from .constants import ACTOR_DEALER, ACTOR_PLAYER
 from .constants import MIN_CARD_SUM, MAX_CARD_SUM, VERBOSE
@@ -24,12 +23,11 @@ class Game():
         self._playback = playback     
         self.player_on_turn = True
         self._cl = self._init_cl()
-        self.stats = Tracker().stats
         self.exploring_starts = exploring_starts
         
         # initialize the Dealer
         if self.exploring_starts == True:
-            self.dealer = ESDealer(self.stats)
+            self.dealer = ESDealer(self._playback.stats)
         else:
             self.dealer = Dealer()
         self.dealer.dealer = self.dealer
@@ -37,7 +35,7 @@ class Game():
         
         # initialize the Player 
         if exploring_starts == True:
-            self.player = ESPlayer(self.stats)
+            self.player = ESPlayer(self._playback.stats)
         else:
             self.player = Player()
         self.player.dealer = self.dealer

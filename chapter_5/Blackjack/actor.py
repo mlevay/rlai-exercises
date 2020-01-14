@@ -3,15 +3,13 @@ import numpy as np
 import operator
 import random
 
+from .action import Action
 from .card import Card, Cards, CardsState
 from .common import enum_to_string
 from .constants import ACTOR_DEALER, ACTOR_PLAYER, DEALER_STICKS_AT
 from .constants import MAX_CARD_SUM, MIN_CARD_SUM, VERBOSE
+from .stats import Stats, MCControlESStats, MCControlOnPolicyStats, MCPredictionStats
 
-
-class Action(enum.Enum):
-    Stick = 0
-    Hit = 1
 
 class Actor():
     def __init__(self):
@@ -100,10 +98,12 @@ class Player(Actor):
             (self._policy[:, 0] == p_card_sum) & \
             (self._policy[:, 1] == d_upcard_value) & \
             (self._policy[:, 2] == p_has_usable_ace)]
-        if len(actions) == 1: # deterministic policy pi(s)
-            action = Action.Hit if actions[0][3] == Action.Hit.value else Action.Stick
-        else: # stochastic policy pi(a|s)
-            action = Action(actions[0, 3]) if actions[0, 4] > actions[1, 4] else Action(actions[1, 3])
+        if len(actions) == 1: # deterministic policy pi(s), no duplicates
+            action = Action.Hit if actions[0][MCPredictionStats.COL_PI_OF_S] == Action.Hit.value else Action.Stick
+        else: # stochastic policy pi(a|s), no duplicates
+            action = Action(actions[0, MCControlOnPolicyStats.COL_A]) \
+                if actions[0, MCControlOnPolicyStats.COL_PI_OF_S_A] > actions[1, MCControlOnPolicyStats.COL_PI_OF_S_A] \
+                    else Action(actions[1, MCControlOnPolicyStats.COL_A])
             
         if VERBOSE == True:
             print(".. {}.{}()".format(str(self).upper(), enum_to_string(action).upper()))
@@ -115,36 +115,13 @@ class Player(Actor):
 
         return action        
            
-class Tracker():
-    def __init__(self):
-        self.stats = self._init_stats()
-    
-    def _init_stats(self):
-        all_card_sums = list(range(MIN_CARD_SUM, MAX_CARD_SUM + 1))
-        all_upcards = [c.value for c in Card]
-        all_usable_ace_states = [0, 1]
-        all_actions = [a.value for a in Action]
-        
-        params = np.array(np.meshgrid(
-            all_card_sums, all_upcards, all_usable_ace_states, all_actions)).T.reshape(-1, 4).tolist()
-        stats = np.zeros((len(params), 5), dtype=int)
-        stats[:, :-1] = params
-        return stats
-    
 class ESActor(Actor):
-    def __init__(self, stats):
+    def __init__(self, stats: MCControlESStats):
         Actor.__init__(self)
-        self.stats = stats
-    
-    def get_stats_for_state(
-        self, card_sum: int, upcard: Card, has_usable_ace: bool) -> np.ndarray:
-        upcard, has_usable_ace = upcard.value, int(has_usable_ace)
-        stats = self.stats[
-            (self.stats[:, 0] == card_sum) & \
-            (self.stats[:, 1] == upcard) & \
-            (self.stats[:, 2] == has_usable_ace)
-        ]
-        return stats
+        
+        assert isinstance(stats, MCControlESStats)
+        
+        self._stats = stats
     
 class ESDealer(ESActor, Dealer):
     def __init__(self, stats):
@@ -155,16 +132,8 @@ class ESDealer(ESActor, Dealer):
         all_cards = [c for c in list(Card)]
         all_cards_but_ace = [c for c in all_cards if c != Card.Ace]
         
-        min_index = np.argmin(self.stats[:, 4], axis=0)
-        min_count = self.stats[min_index, 4]
-        stats = self.stats[self.stats[:, 4] == min_count, :]
-        min_s_a = random.sample(list(stats), 1)[0]
+        card_sum, upcard, has_usable_ace, action = self._stats.get_state_and_action_with_min_start_visits()
         
-        card_sum = min_s_a[0]
-        upcard = Card.get_card_for_value(min(min_s_a[1], 10))
-        has_usable_ace = bool(min_s_a[2])
-        action = Action(min_s_a[3])
-            
         self.cards.add(upcard)
         dealer_cs = self.cards.add(random.choice(all_cards))
         
@@ -183,12 +152,7 @@ class ESDealer(ESActor, Dealer):
         assert player.cards.count_value() == card_sum
         
         # increment the visits counter for this state and action
-        self.stats[
-            (self.stats[:, 0] == card_sum) & \
-            (self.stats[:, 1] == upcard.value) & \
-            (self.stats[:, 2] == int(has_usable_ace)) & \
-            (self.stats[:, 3] == action.value), 4
-            ] += 1
+        self._stats.increment_start_visit_count(card_sum, upcard, has_usable_ace, action)
         
         return dealer_cs, player_cs, action
         
@@ -231,10 +195,10 @@ class ESPlayer(ESActor, Player):
                 (self._policy[:, 0] == p_card_sum) & \
                 (self._policy[:, 1] == d_upcard_value) & \
                 (self._policy[:, 2] == p_has_usable_ace)]
-            if len(actions) == 1: # deterministic policy pi(s)
-                action = Action.Hit if actions[0][3] == Action.Hit.value else Action.Stick
-            else: # stochastic policy pi(a|s)
-                action = Action(actions[0, 3]) if actions[0, 4] > actions[1, 4] else Action(actions[1, 3])
+            if len(actions) == 1: # deterministic policy, no duplicates
+                action = Action.Hit if actions[0][MCControlESStats.COL_PI_OF_S] == Action.Hit.value else Action.Stick
+            else: # deterministic policy, duplicates
+                action = Action(actions[0, MCControlESStats.COL_PI_OF_S])
             
         if VERBOSE == True:
             print(".. {}.{}()".format(str(self).upper(), enum_to_string(action).upper()))
