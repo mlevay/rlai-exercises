@@ -39,7 +39,10 @@ def compute_prediction(num_episodes: int, episodes_from_disk: bool=True, v_from_
         v = mcp.compute_v(episodes)
 
     # plot the value function
-    plot_v(v) 
+    plot_v(v[:, [bjstats.MCPredictionStats.COL_CARD_SUM, 
+                 bjstats.MCPredictionStats.COL_UPCARD,
+                 bjstats.MCPredictionStats.COL_HAS_USABLE_ACE,
+                 bjstats.MCPredictionStats.COL_V_OF_S]]) 
     
 def compute_control_ES(num_episodes: int, pi_and_q_from_disk: bool=True):
     stats = bjstats.MCControlESStats()
@@ -70,16 +73,21 @@ def compute_control_ES(num_episodes: int, pi_and_q_from_disk: bool=True):
             
     # initialize the state value function with v(s)=0. for all s
     mcp = mc_prediction.MonteCarloPrediction(stats)
-    v = mcp.init_v()
     
     # compute the state value function from the action value function
-    v = mcc.compute_v_from_q(v, q)
+    v = mcc.compute_v_from_q()
     
-    # plot the policy
-    plot_pi(pi)
+    # plot the policy (deterministic)
+    plot_pi(mcc.stats.get_pis()[:, [bjstats.MCControlESStats.COL_CARD_SUM,
+                   bjstats.MCControlESStats.COL_UPCARD,
+                   bjstats.MCControlESStats.COL_HAS_USABLE_ACE,
+                   bjstats.MCControlESStats.COL_PI_OF_S]])
     
     # plot the value function
-    plot_v(v)  
+    plot_v(mcc.stats.get_vs()[:, [bjstats.MCControlESStats.COL_CARD_SUM,
+                 bjstats.MCControlESStats.COL_UPCARD,
+                 bjstats.MCControlESStats.COL_HAS_USABLE_ACE,
+                 bjstats.MCControlESStats.COL_V_OF_S]])  
     
 def compute_control_on_policy(num_episodes: int, pi_and_q_from_disk=True):
     stats = bjstats.MCControlOnPolicyStats()
@@ -108,10 +116,15 @@ def compute_control_on_policy(num_episodes: int, pi_and_q_from_disk=True):
         mcc.end_compute()
         pb.update(100)
     
-    # plot the policy
-    plot_pi(pi)
+    # plot the policy (stochastic)
+    plot_pi(mcc.stats.get_pis()[:, bjstats.MCControlOnPolicyStats.COL_CARD_SUM,
+                 bjstats.MCControlOnPolicyStats.COL_UPCARD,
+                 bjstats.MCControlOnPolicyStats.COL_HAS_USABLE_ACE,
+                 bjstats.MCControlOnPolicyStats.COL_A,
+                 bjstats.MCControlOnPolicyStats.COL_PI_OF_S_A])
     
 def plot_v(v: np.ndarray):
+    v = np.unique(v, axis=0)
     c_cs, c_uc, c_hua, c_v = 0, 1, 2, 3
     
     # plot data for has_usable_ace = 1
@@ -132,7 +145,8 @@ def _plot_v(v: np.ndarray):
         index="states_k_sum", columns="states_k_upcard_value", values="rewards_k_plus_1")
     plot.plot_Q(dfQ_pivoted)
                   
-def plot_pi(pi: np.ndarray):
+def plot_pi(pi: np.ndarray, duplicates=False):
+    pi = np.unique(pi, axis=0)
     if pi.shape[1] == 4: 
         # deterministic policy, pi(s)
         c_cs, c_uc, c_hua, c_a = 0, 1, 2, 3
@@ -174,6 +188,6 @@ if __name__ == "__main__":
     # set the number of episodes (= Blackjack games) to be simulated.
     num_episodes = 500000
 
-    #compute_prediction(num_episodes, episodes_from_disk=True, v_from_disk=True)
+    #compute_prediction(num_episodes, episodes_from_disk=True, v_from_disk=False)
     compute_control_ES(num_episodes, pi_and_q_from_disk=False)
     #compute_control_on_policy(num_episodes, pi_and_q_from_disk=False)

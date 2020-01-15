@@ -10,21 +10,81 @@ from .constants import EPSILON, MIN_CARD_SUM, MAX_CARD_SUM, PLAYER_STICKS_AT
 
 
 T = TypeVar("T", int, float)
-Value = Union[T, List[T]]
-State = Tuple[Value[int], Value[int], Value[int]]
+State = Tuple[int, int, int]
 
 class Stats(object, metaclass=ABCMeta):
     COL_CARD_SUM, COL_UPCARD, COL_HAS_USABLE_ACE = 0, 1, 2
+    _default_key = [-1, -1, -1, -1] # [card_sum, upcard, has_usable_ace, action]
     
     def __init__(self):
         self._cols = None
         self._stats = np.array([])
-        self._key = [-1, -1, -1, -1] # card_sum, upcard, has_usable_ace, action:optional
-        self._values = np.array([]) # np.ndarray
+        
+        self._key = []
+        self._indices = np.array([])
+        self._rows = np.array([])
+        
+    def _init_cache(self):
+        self._key = Stats._default_key.copy()
+        self._indices = list(range(self._stats.shape[0]))
+        self._rows = self._stats
+        
+    def _update_cache(self, new_state: State, new_action: Union[Action, int]=None, 
+                              column_a: int=-1):
+        assert self._stats.size > 0
+        
+        are_equal = True
+        if new_state == None: new_state = list(Stats._default_key).copy()[:3]
+        for i in list(range(len(new_state))):
+            s_comp = new_state[i]
+            if s_comp == None: 
+                new_state[i] = list(Stats._default_key).copy()[i]
+            if self._key[i] != s_comp:
+                self._key[i] = s_comp
+                are_equal = False
+        if new_action == None: new_action = list(Stats._default_key).copy()[3]
+        elif isinstance(new_action, Action): new_action = new_action.value
+        if self._key[3] != new_action:
+            self._key[3] = new_action
+            are_equal = False
+        
+        if are_equal == True: 
+            return # key, values remain the same 
+
+        cond_cols = self._cols[:3] + [column_a]
+        count = self._stats.shape[0]
+        conditions = np.array([[True]*len(cond_cols)]*count)
+
+        # new_states = np.array([list(new_state)]*count)
+        # new_actions = np.array([new_action]*count)
+        for i in cond_cols[:-1]:
+            if self._key[i] != -1:
+                # conditions[:, i] = self._stats[:, i] == new_states[:, i]
+                conditions[:, i] = self._stats[:, i] == new_state[i]
+        if self._key[-1] != -1:
+            # conditions[:, 3] = self._stats[:, column_a] == new_actions[:]
+            conditions[:, 3] = self._stats[:, column_a] == new_action
+            
+        indices = self._get_logical_and_indices(conditions)
+        assert len(indices) > 0
+        
+        self._indices = np.atleast_2d(np.array(indices))
+        if len(indices) == 1: 
+            self._set_rows(self._stats[indices[0], :])
+        else:
+            self._set_rows(self._stats[indices][:, :])
+                   
+    def _get_logical_and_indices(self, conditions) -> List:
+        rows = len(conditions)
+        columns = 0 if rows == 0 else len(conditions[0])
+        result = np.full((rows, 1), True, dtype=bool)
+        for i in list(range(columns)):
+            result[:, 0] = result[:, 0] & np.array(conditions)[:, i]
+        return np.argwhere(result[:, 0] == True)[:, 0].tolist()
         
     def _resolve_state_and_action(self, card_sum: int=None, upcard: Union[Card, int]=None, has_usable_ace: Union[bool, int]=None, 
                   action: Union[Action, int]=None) -> (State, Action):
-        s = [0, 0, 0]
+        s = list(Stats._default_key).copy()[:3]
         if card_sum != None: s[0] = card_sum
         if upcard != None: 
             if isinstance(upcard, Card): upcard = upcard.card_value()
@@ -32,54 +92,12 @@ class Stats(object, metaclass=ABCMeta):
         if has_usable_ace != None:
             if isinstance(has_usable_ace, bool): has_usable_ace = int(has_usable_ace)
             s[2] = has_usable_ace
-        a = 0
+        a = list(Stats._default_key).copy()[3]
         if action != None:
             if isinstance(action, Action): action = action.value
             a = action
             
         return tuple(s), a
-        
-    def _update_key_and_values(self, cols: List[int], new_state: State, new_action: Union[Action, int]=None, 
-                              column_a: int=-1):
-        assert self._stats.size > 0
-        
-        if new_state == None: new_state = (-1, -1, -1)
-        for i in list(range(len(new_state))):
-            s_comp = new_state[i]
-            if s_comp == None: new_state[i] = -1
-            self._key[i] = s_comp
-        if new_action == None: new_action = -1
-        elif isinstance(new_action, Action): new_action = new_action.value
-        self._key[3] = new_action
-            
-        cond_cols = cols[:3] + [column_a]
-        count = self._stats.shape[0]
-        conditions = np.array([[True]*len(cond_cols)]*count)
-
-        new_states = np.array([list(new_state)]*count)
-        new_actions = np.array([new_action]*count)
-        for i in cond_cols[:-1]:
-            if self._key[i] != -1:
-                if isinstance(new_state[i], int): 
-                    conditions[:, i] = self._stats[:, i] == new_states[:, i]
-                elif isinstance(new_state[i], List[int]): 
-                    conditions[:, i] = self._stats[:, i] in new_states[:, i]
-        if self._key[-1] != -1:
-            conditions[:, 3] = self._stats[:, column_a] == new_actions[:]
-            
-        indices = self._get_logical_and_indices(conditions)
-        if len(indices) == 1: 
-            self._set_values(self._stats[indices[0], cols])
-        else:
-            self._set_values(self._stats[indices][:, cols])
-                   
-    def _get_logical_and_indices(self, conditions) -> np.ndarray:
-        rows = len(conditions)
-        columns = 0 if rows == 0 else len(conditions[0])
-        result = np.full((rows, 1), True, dtype=bool)
-        for i in list(range(columns)):
-            result[:, 0] = result[:, 0] & np.array(conditions)[:, i]
-        return np.argwhere(result[:, 0] == True)[:, 0].tolist()
         
     def _unpack_scalar(self, value: np.ndarray, dupl=False) -> T:
         v: np.ndarray = np.atleast_2d(value)
@@ -111,74 +129,82 @@ class Stats(object, metaclass=ABCMeta):
     def _get_stats(self, state: State = None, action: Union[Action, int] = None, 
                    column_a: int = -1) -> np.ndarray:
         """
-        Returns the current state or state-action pair, or alternatively the whole stats.
+        Returns the full row(s) for current state or state-action pair, 
+        or alternatively for all rows.
         It doesn't do any duplicate filtering.
         """
         assert not(action != None and column_a < 0)
         
-        self._update_key_and_values(self._cols, state, new_action=action, column_a=column_a)
-        return self._values
+        self._update_cache(state, new_action=action, column_a=column_a)
+        return self._rows
         
-    def _set_stats(self, stats: np.ndarray, cols_to_set: Union[List[int], int]=None, 
-                   state: State=None, action: Union[Action, int]=None, column_a: int=-1, 
-                   dupl=False):
+    def _set_stats(self, values: Union[T, List[T], np.ndarray], cols_to_set: Union[List[int], int]=None, 
+                   state: State=None, action: Union[Action, int]=None, column_a: int=-1):
         """
-        Sets the stats for a state or state-action pair, or alternatively the whole stats.
+        Sets columns in the rows for a state or state-action pair, or 
+        alternatively for all rows.
         Important to be careful with overwriting too many columns - should be limited to 
         a sub-set of column indices by specifying them in cols_to_set. 
         It creates duplicate values without checking.
         """
-        if cols_to_set != None and isinstance(cols_to_set, int) == True: cols_to_set = [cols_to_set]
+        if cols_to_set != None: 
+            if isinstance(cols_to_set, int) == True: cols_to_set = [cols_to_set]
+        else: cols_to_set = self._cols
         
         assert not(state == None and action != None)
-        # assert (cols_to_set != None and stats.shape[1] == len(cols_to_set)) or \
-        #     (cols_to_set == None and stats.shape[1] == len(self._cols))
         
-        self._update_key_and_values(self._cols, state, action, column_a)
+        self._update_cache(state, new_action=action, column_a=column_a)
         
-        if state == None and action == None:
-            self._stats = stats
-        else:
-            if action == None:
-                indices = np.argwhere(
-                    (self._stats[:, Stats.COL_CARD_SUM].astype(int) == state[0]) & \
-                    (self._stats[:, Stats.COL_UPCARD].astype(int) == state[1]) & \
-                    (self._stats[:, Stats.COL_HAS_USABLE_ACE].astype(int) == state[2]))[:, 0]
+        # if self._key == Stats._default_key:
+        #     self._stats = values
+        # else:
+        #     if action == None:
+        #         indices = np.argwhere(
+        #             (self._stats[:, Stats.COL_CARD_SUM].astype(int) == state[0]) & \
+        #             (self._stats[:, Stats.COL_UPCARD].astype(int) == state[1]) & \
+        #             (self._stats[:, Stats.COL_HAS_USABLE_ACE].astype(int) == state[2]))[:, 0]
+        #     else:
+        #         if isinstance(action, Action): action = action.value
+        #         indices = np.argwhere(
+        #             (self._stats[:, Stats.COL_CARD_SUM].astype(int) == state[0]) & \
+        #             (self._stats[:, Stats.COL_UPCARD].astype(int) == state[1]) & \
+        #             (self._stats[:, Stats.COL_HAS_USABLE_ACE].astype(int) == state[2]) & \
+        #             (self._stats[:, column_a].astype(int) == action))[:, 0]
+                
+        #     rows = self._stats[indices]
+        rows = np.atleast_2d(self._rows)
+        values = self._reshape_rows(values, (len(rows), len(cols_to_set)))
+                
+        rows[:, cols_to_set] = values
+        self._stats[self._indices, :] = rows
+        self._update_cache(state, new_action=action, column_a=column_a)
+        
+    def _reshape_rows(self, values: Union[T, List[T], np.ndarray], 
+                        target_shape: (int, int)) -> np.ndarray:
+        target_rows, target_cols = target_shape
+        if isinstance(values, List) == False: values = [values] 
+        values = np.array(values)
+        if len(values.shape) == 1: # 1d array
+            assert target_cols == 1 or target_rows in [1, 2]
+            assert values.shape[0] == target_cols or values.shape[0] == target_rows or \
+                values.shape[0]*2 == target_rows
+            
+            if values.shape[0] != target_cols:
+                if values.shape[0]*2 == target_rows: 
+                    values = np.repeat(values, [2], axis=0) # (1,) -> (1, 1), [row] -> [[row],[row]]
+                else: 
+                    values = np.array([values]).T # (1,) -> (1, 1), [m, m, m] -> [[m], [m], [m]]]
             else:
-                if isinstance(action, Action): action = action.value
-                indices = np.argwhere(
-                    (self._stats[:, Stats.COL_CARD_SUM].astype(int) == state[0]) & \
-                    (self._stats[:, Stats.COL_UPCARD].astype(int) == state[1]) & \
-                    (self._stats[:, Stats.COL_HAS_USABLE_ACE].astype(int) == state[2]) & \
-                    (self._stats[:, column_a].astype(int) == action))[:, 0]
-                
-            rows = self._stats[indices]
-            target_rows, target_cols = len(rows), len(cols_to_set)
-            if isinstance(stats, List) == False: stats = [stats] 
-            stats = np.array(stats)
-            if len(stats.shape) == 1: # 1d array
-                assert target_cols == 1 or target_rows in [1, 2]
-                assert stats.shape[0] == target_cols or stats.shape[0] == target_rows or \
-                    stats.shape[0]*2 == target_rows
-                
-                if stats.shape[0] != target_cols:
-                    if stats.shape[0]*2 == target_rows: 
-                        stats = np.repeat(stats, [2], axis=0) # (1,) -> (1, 1), [row] -> [[row],[row]]
-                    else: 
-                        stats = np.array([stats]).T # (1,) -> (1, 1), [m, m, m] -> [[m], [m], [m]]]
-                else:
-                    stats = np.array([stats]) # (1,) -> (1, 1), [m, m, m] -> [[m, m, m]]
-            elif len(stats.shape) == 2:
-                assert (stats.shape[0] == target_rows or stats.shape[0]*2 == target_rows) and stats.shape[1] == target_cols
-                
-                if stats.shape[0]*2 == target_rows:
-                    stats = np.repeat(stats, [2], axis=0)
-                    
-            rows[:, cols_to_set] = stats
-            self._stats[indices, :] = rows
-        
-    def _set_values(self, values):
-        self._values = values
+                values = np.array([values]) # (1,) -> (1, 1), [m, m, m] -> [[m, m, m]]
+        elif len(values.shape) == 2:
+            assert (values.shape[0] == target_rows or values.shape[0]*2 == target_rows) and values.shape[1] == target_cols
+            
+            if values.shape[0]*2 == target_rows:
+                values = np.repeat(values, [2], axis=0)
+        return values
+    
+    def _set_rows(self, values):
+        self._rows = values
     
     def _init_pi_of_s(self, column_pi: int, player_sticks_at: int=PLAYER_STICKS_AT):
         indices = np.argwhere(self._stats[:, Stats.COL_CARD_SUM] >= player_sticks_at)[:, 0]
@@ -268,7 +294,6 @@ class Stats(object, metaclass=ABCMeta):
     def _get_visit_count(self, state: State, column_visits: int, 
                     action: Union[Action, int], column_a: int) -> int:
         assert not(state == None or state[0] == None or state[1] == None or state[2] == None)
-        assert column_a >= 0
 
         return int(self._unpack_scalar(
                     self._get_stats(state, action, column_a=column_a)[column_visits]))
@@ -276,10 +301,8 @@ class Stats(object, metaclass=ABCMeta):
     def _increment_visit_count(self, state: State, column_visits: int, 
                     action: Union[Action, int], column_a):
         assert not(state == None or state[0] == None or state[1] == None or state[2] == None)
-        assert column_a >= 0
 
         incr = 1
-        if isinstance(action, Action): action = action.value
         stats = self._get_stats(state, action, column_a=column_a)[column_visits]
         self._set_stats(stats + incr, cols_to_set=column_visits, state=state, action=action, column_a=column_a)
     
@@ -307,6 +330,9 @@ class MCPredictionStats(Stats):
         # intialize pi(s) with HIT21
         self._init_pi_of_s(MCPredictionStats.COL_PI_OF_S)
         
+        # initialize the local cache
+        self._init_cache()
+        
     def get_stats(self, card_sum: int=None, upcard: Union[Card, int]=None, 
                   has_usable_ace: Union[bool, int]=None) -> np.ndarray:
         s, _ = self._resolve_state_and_action(card_sum, upcard, has_usable_ace)
@@ -330,12 +356,12 @@ class MCPredictionStats(Stats):
     def get_visit_count(self, card_sum: int, upcard: Union[Card, int], 
               has_usable_ace: Union[bool, int]):
         s, _ = self._resolve_state_and_action(card_sum, upcard, has_usable_ace)
-        return self._get_visit_count(s, MCPredictionStats.COL_VISITS)
+        return self._get_visit_count(s, MCPredictionStats.COL_VISITS, None, -1)
     
     def increment_visit_count(self, card_sum: int, upcard: Union[Card, int], 
               has_usable_ace: Union[bool, int]):
         s, _ = self._resolve_state_and_action(card_sum, upcard, has_usable_ace)
-        self._increment_visit_count(s, MCPredictionStats.COL_VISITS)
+        self._increment_visit_count(s, MCPredictionStats.COL_VISITS, None, -1)
         
 class MCControlESStats(Stats):
     COL_A, COL_Q_OF_S_A, COL_PI_OF_S = 3, 4, 5
@@ -365,6 +391,9 @@ class MCControlESStats(Stats):
         # initialize pi(s) with HIT21
         self._init_pi_of_s(MCControlESStats.COL_PI_OF_S)
         
+        # initialize the local cache
+        self._init_cache()
+        
     def get_stats(self, card_sum: int=None, upcard: Union[Card, int]=None, 
                   has_usable_ace: Union[bool, int]=None, 
                   action: Union[Action, int]=None) -> np.ndarray:
@@ -372,15 +401,13 @@ class MCControlESStats(Stats):
         return self._get_stats(state=s, action=a, column_a=MCControlESStats.COL_A)
     
     def get_pis(self):
-        return self._get_stats()[:, [
-            Stats.COL_CARD_SUM, Stats.COL_UPCARD, Stats.COL_HAS_USABLE_ACE, 
-            MCControlESStats.COL_A, MCControlESStats.COL_Q_OF_S_A, MCControlESStats.COL_PI_OF_S]]
+        return self._get_stats()[:, self._cols[:6]]
+        
+    def get_vs(self):
+        return self._get_stats()[:, self._cols[:9]]
     
     def get_qs(self):
-        return self._get_stats()[:, [
-            Stats.COL_CARD_SUM, Stats.COL_UPCARD, Stats.COL_HAS_USABLE_ACE, 
-            MCControlESStats.COL_A, MCControlESStats.COL_Q_OF_S_A, MCControlESStats.COL_PI_OF_S, 
-            MCControlESStats.COL_VISITS]]
+        return self._get_stats()[:, self._cols[7]]
         
     def get_q(self, card_sum: int, upcard: Union[Card, int], 
               has_usable_ace: Union[bool, int], action: Union[Action, int]) -> float:
@@ -448,11 +475,11 @@ class MCControlESStats(Stats):
     def set_v_and_probs(self, card_sum: int, upcard: Union[Card, int], has_usable_ace: Union[bool, int], 
               prob_stick: float, prob_hit: float, v: float):
         self._set_stats([prob_stick, v], [MCControlESStats.COL_PROB, MCControlESStats.COL_V_OF_S],
-                                (card_sum, dealer_upcard, has_usable_ace), 
-                                action=0, column_a=MCControlESStats.COL_A, dupl=True)
+                                (card_sum, upcard, has_usable_ace), 
+                                action=0, column_a=MCControlESStats.COL_A)
         self._set_stats([prob_hit, v], [MCControlESStats.COL_PROB, MCControlESStats.COL_V_OF_S],
-                                (card_sum, dealer_upcard, has_usable_ace), 
-                                action=1, column_a=MCControlESStats.COL_A, dupl=True)
+                                (card_sum, upcard, has_usable_ace), 
+                                action=1, column_a=MCControlESStats.COL_A)
     
 class MCControlOnPolicyStats(Stats):
     COL_A, COL_Q_OF_S_A, COL_PI_OF_S_A, COL_VISITS = 3, 4, 5, 6
@@ -478,6 +505,9 @@ class MCControlOnPolicyStats(Stats):
         
         # initialize pi(s, a) with epsilon-soft HIT21
         self._init_pi_of_s_a_epsilon_soft(MCControlOnPolicyStats.COL_A, MCControlOnPolicyStats.COL_PI_OF_S)
+        
+        # initialize the local cache
+        self._init_cache()
         
     def get_stats(self, card_sum: int=None, upcard: Union[Card, int]=None, 
                   has_usable_ace: Union[bool, int]=None, 

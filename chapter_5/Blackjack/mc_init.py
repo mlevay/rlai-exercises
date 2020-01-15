@@ -116,7 +116,7 @@ class MonteCarloInit():
     def end_compute(self):
         if self.exploring_starts == True:
             print("Stats:")
-            for sa_c in self.stats:
+            for sa_c in self.stats._stats:
                 print("state=[{}, {}, {}], action={}, count={}".format(
                     sa_c[Stats.COL_CARD_SUM], sa_c[Stats.COL_UPCARD], sa_c[Stats.COL_HAS_USABLE_ACE], \
                     sa_c[MCControlESStats.COL_A], sa_c[MCControlESStats.COL_START_VISITS]))
