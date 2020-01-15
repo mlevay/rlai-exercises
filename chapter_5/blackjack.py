@@ -186,5 +186,5 @@ if __name__ == "__main__":
     num_episodes = 500000
 
     #compute_prediction(num_episodes, episodes_from_disk=False, stats_from_disk=False)
-    compute_control_ES(num_episodes, stats_from_disk=False)
-    #compute_control_on_policy(num_episodes, stats_from_disk=False)
+    #compute_control_ES(num_episodes, stats_from_disk=True)
+    compute_control_on_policy(num_episodes, stats_from_disk=False)

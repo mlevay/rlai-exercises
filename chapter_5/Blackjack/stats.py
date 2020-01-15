@@ -55,14 +55,10 @@ class Stats(object, metaclass=ABCMeta):
         count = self._stats.shape[0]
         conditions = np.array([[True]*len(cond_cols)]*count)
 
-        # new_states = np.array([list(new_state)]*count)
-        # new_actions = np.array([new_action]*count)
         for i in cond_cols[:-1]:
             if self._key[i] != -1:
-                # conditions[:, i] = self._stats[:, i] == new_states[:, i]
                 conditions[:, i] = self._stats[:, i] == new_state[i]
         if self._key[-1] != -1:
-            # conditions[:, 3] = self._stats[:, column_a] == new_actions[:]
             conditions[:, 3] = self._stats[:, column_a] == new_action
             
         indices = self._get_logical_and_indices(conditions)
@@ -155,23 +151,6 @@ class Stats(object, metaclass=ABCMeta):
         
         self._update_cache(state, new_action=action, column_a=column_a)
         
-        # if self._key == Stats._default_key:
-        #     self._stats = values
-        # else:
-        #     if action == None:
-        #         indices = np.argwhere(
-        #             (self._stats[:, Stats.COL_CARD_SUM].astype(int) == state[0]) & \
-        #             (self._stats[:, Stats.COL_UPCARD].astype(int) == state[1]) & \
-        #             (self._stats[:, Stats.COL_HAS_USABLE_ACE].astype(int) == state[2]))[:, 0]
-        #     else:
-        #         if isinstance(action, Action): action = action.value
-        #         indices = np.argwhere(
-        #             (self._stats[:, Stats.COL_CARD_SUM].astype(int) == state[0]) & \
-        #             (self._stats[:, Stats.COL_UPCARD].astype(int) == state[1]) & \
-        #             (self._stats[:, Stats.COL_HAS_USABLE_ACE].astype(int) == state[2]) & \
-        #             (self._stats[:, column_a].astype(int) == action))[:, 0]
-                
-        #     rows = self._stats[indices]
         rows = np.atleast_2d(self._rows)
         values = self._reshape_rows(values, (len(rows), len(cols_to_set)))
                 
@@ -339,7 +318,7 @@ class MCPredictionStats(Stats):
         return self._get_stats(state=s)
     
     def get_vs(self):
-        return self._get_stats()[:, [:4]]
+        return self._get_stats()[:, :4]
     
     def get_v(self, card_sum: int, upcard: Union[Card, int], 
               has_usable_ace: Union[bool, int]) -> float:
@@ -499,10 +478,10 @@ class MCControlOnPolicyStats(Stats):
             (len(all_card_sums)*len(all_upcards)*len(all_has_usable_ace_states)*len(all_actions), 7), 
             dtype=float)
         self._stats[:, :4] = np.array(np.meshgrid(
-            all_card_sums, all_upcards, all_usable_ace_states, all_actions)).T.reshape(-1, 4)
+            all_card_sums, all_upcards, all_has_usable_ace_states, all_actions)).T.reshape(-1, 4)
         
         # initialize pi(s, a) with epsilon-soft HIT21
-        self._init_pi_of_s_a_epsilon_soft(MCControlOnPolicyStats.COL_A, MCControlOnPolicyStats.COL_PI_OF_S)
+        self._init_pi_of_s_a_epsilon_soft(MCControlOnPolicyStats.COL_A, MCControlOnPolicyStats.COL_PI_OF_S_A)
         
         # initialize the local cache
         self._init_cache()
@@ -519,20 +498,34 @@ class MCControlOnPolicyStats(Stats):
     def get_qs(self):
         return self._get_stats()[:, self._cols[:5]]
         
-    def get_q(self, state: State, action: Union[Action, int]) -> float:
+    def get_q(self, card_sum: int, upcard: Union[Card, int], 
+                  has_usable_ace: Union[bool, int], action: Union[Action, int]) -> float:
         s, a = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action=action)
         return self._get_q(s, a, MCControlOnPolicyStats.COL_A, MCControlOnPolicyStats.COL_Q_OF_S_A)
         
-    def set_q(self, state: State, action: Union[Action, int], value: float):
+    def set_q(self, card_sum: int, upcard: Union[Card, int], 
+                  has_usable_ace: Union[bool, int], action: Union[Action, int], value: float):
         s, a = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action=action)
-        self._set_q(s, s, MCControlOnPolicyStats.COL_A, MCControlOnPolicyStats.COL_Q_OF_S_A, value)
+        self._set_q(s, a, MCControlOnPolicyStats.COL_A, MCControlOnPolicyStats.COL_Q_OF_S_A, value)
         
-    def get_pi(self, state: State, action: Union[Action, int]) -> float:
+    def get_pi(self, card_sum: int, upcard: Union[Card, int], 
+                  has_usable_ace: Union[bool, int], action: Union[Action, int]) -> float:
         s, a = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action=action)
-        return self._get_pi(state, MCControlOnPolicyStats.COL_PI_OF_S_A, action=a, column_a=MCControlOnPolicyStats.COL_A)
+        return self._get_pi(s, MCControlOnPolicyStats.COL_PI_OF_S_A, action=a, column_a=MCControlOnPolicyStats.COL_A)
     
-    def set_pi(self, state: State, value: float, action: Union[Action, int]):
+    def set_pi(self, card_sum: int, upcard: Union[Card, int], 
+                  has_usable_ace: Union[bool, int], value: float, action: Union[Action, int]):
         s, a = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action=action)
-        self.set_pi(state, MCControlOnPolicyStats.COL_PI_OF_S_A, value, action=a, column_a=MCControlOnPolicyStats.COL_A)
+        self._set_pi(s, MCControlOnPolicyStats.COL_PI_OF_S_A, value, action=a, column_a=MCControlOnPolicyStats.COL_A)
+        
+    def get_visit_count(self, card_sum: int, upcard: Union[Card, int], 
+              has_usable_ace: Union[bool, int], action: Union[Action, int]):
+        s, a = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action=action)
+        return self._get_visit_count(s, MCControlOnPolicyStats.COL_VISITS, a, MCControlOnPolicyStats.COL_A)
+    
+    def increment_visit_count(self, card_sum: int, upcard: Union[Card, int], 
+              has_usable_ace: Union[bool, int], action: Union[Action, int]):
+        s, a = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action=action)
+        self._increment_visit_count(s, MCControlOnPolicyStats.COL_VISITS, a, MCControlOnPolicyStats.COL_A)
         
         

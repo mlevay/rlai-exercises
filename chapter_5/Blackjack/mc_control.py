@@ -30,7 +30,7 @@ class MonteCarloControl(object, metaclass=ABCMeta):
         stats = unpickle(self.file_name_stats)
         assert stats is not None
         
-        self.stats._set_stats(stats)
+        self.stats._set_stats(stats._stats)
         return stats
     
     def save_stats(self, stats: np.ndarray):
@@ -43,7 +43,7 @@ class MonteCarloControl(object, metaclass=ABCMeta):
         pass
     
     def end_compute(self):
-        self.save_stats(self.stats)
+        self.save_stats(self.stats._stats)
     
 class MonteCarloControl_ES_FirstVisit(MonteCarloControl):
     """
@@ -139,7 +139,7 @@ class MonteCarloControl_OnP_FirstVisit(MonteCarloControl):
                 Q = self.stats.get_q(cs, uc, hua, a)
                 N = self.stats.get_visit_count(cs, uc, hua, a)
                 Q = Q + ((G - Q)/N)
-                self.stats.set_q(cs, uc, hua, Q)
+                self.stats.set_q(cs, uc, hua, a, Q)
                 
                 # revise the policy for this state (use on-policy MC
                 # with an epsilon-greedy policy)
@@ -164,8 +164,8 @@ class MonteCarloControl_OnP_FirstVisit(MonteCarloControl):
                     maximizing_a = row_hit[MCControlESStats.COL_A]
                     other_a = row_stick[MCControlESStats.COL_A]
                     
-                self.stats.set_pi((cs, uc, hua), 1 - EPSILON + EPSILON/2, maximizing_a)
-                self.stats.set_pi((cs, uc, hua), EPSILON/2, other_a)
+                self.stats.set_pi(cs, uc, hua, 1 - EPSILON + EPSILON/2, maximizing_a)
+                self.stats.set_pi(cs, uc, hua, EPSILON/2, other_a)
                         
         stats = self.stats.get_stats()
         return stats
