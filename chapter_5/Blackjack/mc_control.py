@@ -4,8 +4,8 @@ import os
 import random
 
 from .common import get_all_states_and_actions, pickle, unpickle
-from .constants import EPSILON, GAMMA
-from .constants import DIR_ABS_PATH, DIR_REL_PATH_CTRL
+from .constants import GAMMA
+from .constants import DIR_REL_PATH_CTRL
 from .constants import PICKLE_FILE_NAME_STATS
 from .playback import Playback
 from .stats import MCControlESStats, MCControlOnPolicyStats, Stats
@@ -14,12 +14,12 @@ class MonteCarloControl(object, metaclass=ABCMeta):
     """
     Implements common functionality for Monte Carlo Control methods.
     """
-    def __init__(self, stats: Stats):
-        self.file_name_stats = self._get_file_path()
+    def __init__(self, stats: Stats, disk_path: str):
+        self.file_name_stats = self._get_file_path(disk_path)
         self.stats = stats
 
-    def _get_file_path(self) -> str:
-        rel_path = os.path.join(DIR_ABS_PATH, DIR_REL_PATH_CTRL)
+    def _get_file_path(self, disk_path: str) -> str:
+        rel_path = os.path.join(disk_path, DIR_REL_PATH_CTRL)
         stats_path = os.path.join(rel_path, PICKLE_FILE_NAME_STATS)
         return stats_path
         
@@ -30,7 +30,7 @@ class MonteCarloControl(object, metaclass=ABCMeta):
         stats = unpickle(self.file_name_stats)
         assert stats is not None
         
-        self.stats._set_stats(stats._stats)
+        self.stats._set_stats(stats)
         return stats
     
     def save_stats(self, stats: np.ndarray):
@@ -50,8 +50,8 @@ class MonteCarloControl_ES_FirstVisit(MonteCarloControl):
     Implements estimation for the optimal action value function using Monte Carlo 
     Control ES (first-visit).
     """
-    def __init__(self, stats: MCControlESStats):
-        super(MonteCarloControl_ES_FirstVisit, self).__init__(stats)
+    def __init__(self, stats: MCControlESStats, disk_path: str):
+        super(MonteCarloControl_ES_FirstVisit, self).__init__(stats, disk_path)
         assert isinstance(stats, MCControlESStats) == True
         
     def compute_v_from_q(self) -> np.ndarray:
@@ -114,9 +114,11 @@ class MonteCarloControl_OnP_FirstVisit(MonteCarloControl):
     Implements estimation for the optimal action value function using On-Policy 
     Monte Carlo Control (first-visit).
     """
-    def __init__(self, stats: MCControlOnPolicyStats):
-        super(MonteCarloControl_OnP_FirstVisit, self).__init__(stats)
+    def __init__(self, stats: MCControlOnPolicyStats, epsilon: float, disk_path: str):
+        super(MonteCarloControl_OnP_FirstVisit, self).__init__(stats, disk_path)
         assert isinstance(stats, MCControlOnPolicyStats) == True
+        
+        self._epsilon = epsilon
     
     def compute_episode(self, ep: Playback.Episode) -> np.ndarray:
         """
@@ -164,8 +166,8 @@ class MonteCarloControl_OnP_FirstVisit(MonteCarloControl):
                     maximizing_a = row_hit[MCControlESStats.COL_A]
                     other_a = row_stick[MCControlESStats.COL_A]
                     
-                self.stats.set_pi(cs, uc, hua, 1 - EPSILON + EPSILON/2, maximizing_a)
-                self.stats.set_pi(cs, uc, hua, EPSILON/2, other_a)
+                self.stats.set_pi(cs, uc, hua, 1 - self._epsilon + self._epsilon/2, maximizing_a)
+                self.stats.set_pi(cs, uc, hua, self._epsilon/2, other_a)
                         
         stats = self.stats.get_stats()
         return stats

@@ -6,8 +6,7 @@ import time
 from typing import Dict
 
 from .common import get_all_states, get_all_states_and_actions, pickle, unpickle
-from .constants import DIR_ABS_PATH, DIR_REL_PATH_CTRL, DIR_REL_PATH_INIT, DIR_REL_PATH_PRED
-from .constants import EPSILON
+from .constants import DIR_REL_PATH_CTRL, DIR_REL_PATH_INIT, DIR_REL_PATH_PRED
 from .constants import PICKLE_FILE_NAME_EPISODES, PICKLE_FILE_NAME_STATS
 from .constants import PLAYER_STICKS_AT, VERBOSE
 from .game import Game
@@ -15,19 +14,19 @@ from .playback import Playback
 from .stats import Stats, MCControlESStats, MCControlOnPolicyStats, MCPredictionStats
 
 
-class MonteCarloInit():
+class MonteCarloEpisodes():
     """
     (1) Initializes policy tables (random epsilon-soft policy or HIT20 policy);
     (2) Computes episodes (= simulated Blackjack games) for use with Monte Carlo.
     """
-    def __init__(self, stats: Stats):
+    def __init__(self, stats: Stats, disk_path: str):
         assert isinstance(stats, MCControlESStats) == True or \
             isinstance(stats,  MCControlOnPolicyStats) == True or \
             isinstance(stats, MCPredictionStats) == True
         
         self.exploring_starts = isinstance(stats, MCControlESStats)
         self.stats = stats
-        self.file_name_episodes, self.file_name_stats = self._get_file_paths()
+        self.file_name_episodes, self.file_name_stats = self._get_file_paths(disk_path)
         self.cols = self._init_cols(stats)
         
     def _init_cols(self, stats: Stats) -> Dict:
@@ -65,17 +64,17 @@ class MonteCarloInit():
             }
         return cols
     
-    def _get_file_paths(self) -> (str, str):
+    def _get_file_paths(self, disk_path: str) -> (str, str):
         eps_file_path, stats_file_path = "", "" 
         
-        rel_path = os.path.join(DIR_ABS_PATH, DIR_REL_PATH_INIT)
+        rel_path = os.path.join(disk_path, DIR_REL_PATH_INIT)
         eps_file_path = os.path.join(rel_path, PICKLE_FILE_NAME_EPISODES)
                 
         if isinstance(self.stats, MCPredictionStats) == True:
-            rel_path = os.path.join(DIR_ABS_PATH, DIR_REL_PATH_PRED)
+            rel_path = os.path.join(disk_path, DIR_REL_PATH_PRED)
         elif isinstance(self.stats, MCControlESStats) == True or \
             isinstance(self.stats, MCControlOnPolicyStats) == True:
-            rel_path = os.path.join(DIR_ABS_PATH, DIR_REL_PATH_CTRL)
+            rel_path = os.path.join(disk_path, DIR_REL_PATH_CTRL)
         stats_file_path = os.path.join(rel_path, PICKLE_FILE_NAME_STATS)
         
         return eps_file_path, stats_file_path

@@ -6,7 +6,7 @@ from typing import Any, List, NewType, Tuple, Type, TypeVar, Union
 
 from .action import Action
 from .card import Card
-from .constants import EPSILON, MIN_CARD_SUM, MAX_CARD_SUM, PLAYER_STICKS_AT
+from .constants import MIN_CARD_SUM, MAX_CARD_SUM, PLAYER_STICKS_AT
 
 
 T = TypeVar("T", int, float)
@@ -197,33 +197,33 @@ class Stats(object, metaclass=ABCMeta):
         self._stats[indices] = rows
     
     def _init_pi_of_s_a_epsilon_soft(self, column_a: int, 
-                                     column_pi: int, player_sticks_at: int=PLAYER_STICKS_AT):
+                                     column_pi: int, epsilon: float, player_sticks_at: int=PLAYER_STICKS_AT):
         indices = np.argwhere(
             (self._stats[:, Stats.COL_CARD_SUM] >= player_sticks_at) & \
             (self._stats[:, column_a] == Action.Stick.value))[:, 0]
         rows = self._stats[indices]
-        rows[:, column_pi] = 1 - EPSILON
+        rows[:, column_pi] = 1 - epsilon
         self._stats[indices] = rows
         
         indices = np.argwhere(
             (self._stats[:, Stats.COL_CARD_SUM] >= player_sticks_at) & \
             (self._stats[:, column_a] == Action.Hit.value))[:, 0]
         rows = self._stats[indices]
-        rows[:, column_pi] = EPSILON
+        rows[:, column_pi] = epsilon
         self._stats[indices] = rows
         
         indices = np.argwhere(
             (self._stats[:, Stats.COL_CARD_SUM] < player_sticks_at) & \
             (self._stats[:, column_a] == Action.Stick.value))[:, 0]
         rows = self._stats[indices]
-        rows[:, column_pi] = EPSILON
+        rows[:, column_pi] = epsilon
         self._stats[indices] = rows
         
         indices = np.argwhere(
             (self._stats[:, Stats.COL_CARD_SUM] < player_sticks_at) & \
             (self._stats[:, column_a] == Action.Hit.value))[:, 0]
         rows = self._stats[indices]
-        rows[:, column_pi] = 1 - EPSILON
+        rows[:, column_pi] = 1 - epsilon
         self._stats[indices] = rows
         
     def _get_v(self, state: State, column_v: int, dupl: bool=False) -> float:
@@ -461,11 +461,12 @@ class MCControlESStats(Stats):
 class MCControlOnPolicyStats(Stats):
     COL_A, COL_Q_OF_S_A, COL_PI_OF_S_A, COL_VISITS = 3, 4, 5, 6
     
-    def __init__(self):
+    def __init__(self, epsilon: float):
         super().__init__()
         self._cols = [Stats.COL_CARD_SUM, Stats.COL_UPCARD, Stats.COL_HAS_USABLE_ACE, 
                       MCControlOnPolicyStats.COL_A, MCControlOnPolicyStats.COL_Q_OF_S_A, 
                       MCControlOnPolicyStats.COL_PI_OF_S_A, MCControlOnPolicyStats.COL_VISITS]
+        self._epsilon = epsilon
         self._init_stats()
         
     def _init_stats(self):
@@ -481,7 +482,7 @@ class MCControlOnPolicyStats(Stats):
             all_card_sums, all_upcards, all_has_usable_ace_states, all_actions)).T.reshape(-1, 4)
         
         # initialize pi(s, a) with epsilon-soft HIT21
-        self._init_pi_of_s_a_epsilon_soft(MCControlOnPolicyStats.COL_A, MCControlOnPolicyStats.COL_PI_OF_S_A)
+        self._init_pi_of_s_a_epsilon_soft(MCControlOnPolicyStats.COL_A, MCControlOnPolicyStats.COL_PI_OF_S_A, self._epsilon)
         
         # initialize the local cache
         self._init_cache()

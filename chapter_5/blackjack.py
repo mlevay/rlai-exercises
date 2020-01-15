@@ -5,23 +5,25 @@ from progressbar import ProgressBar
 import time
 
 from Blackjack.card import Card
-from Blackjack.constants import MAX_CARD_SUM, MIN_CARD_SUM, PLAYER_STICKS_AT
+from Blackjack.constants import EPSILON, MAX_CARD_SUM, MIN_CARD_SUM, DIR_ABS_PATH, PLAYER_STICKS_AT
 from Blackjack import game
 from Blackjack import mc_control, mc_episodes, mc_prediction
 from Blackjack import plot
 from Blackjack import stats as bjstats
 
 
-def compute_prediction(num_episodes: int, episodes_from_disk: bool=True, stats_from_disk: bool=True):
+def compute_prediction(num_episodes: int, episodes_from_disk: bool=True, stats_from_disk: bool=True, 
+                       disk_path: str=None):
     assert not(episodes_from_disk == False and stats_from_disk == True)
     
+    if disk_path == None: disk_path = DIR_ABS_PATH
     stats = bjstats.MCPredictionStats()
+    
     # compute or load the episodes with fixed r/o policy HIT20
-    mce = mc_episodes.MonteCarloInit(stats)
+    mce = mc_episodes.MonteCarloEpisodes(stats, disk_path)
     if episodes_from_disk == True:
         episodes = mce.load_episodes()  
     else:
-        # pi = mce.init_pi_of_s(PLAYER_STICKS_AT)
         mce.start_compute(commit_to_disk=True)
         episodes = [None]*num_episodes
         pb = ProgressBar().start()
@@ -32,7 +34,7 @@ def compute_prediction(num_episodes: int, episodes_from_disk: bool=True, stats_f
         pb.update(100)
 
     # estimate or load the state value function for the episodes
-    mcp = mc_prediction.MonteCarloPrediction(stats)
+    mcp = mc_prediction.MonteCarloPrediction(stats, disk_path)
     if stats_from_disk == True:
         stats = mcp.load_stats()
     else:
@@ -44,17 +46,17 @@ def compute_prediction(num_episodes: int, episodes_from_disk: bool=True, stats_f
                  bjstats.MCPredictionStats.COL_HAS_USABLE_ACE,
                  bjstats.MCPredictionStats.COL_V_OF_S]]) 
     
-def compute_control_ES(num_episodes: int, stats_from_disk: bool=True):
+def compute_control_ES(num_episodes: int, stats_from_disk: bool=True, disk_path: str=None):
+    if disk_path == None: disk_path = DIR_ABS_PATH
     stats = bjstats.MCControlESStats()
     
-    mcc = mc_control.MonteCarloControl_ES_FirstVisit(stats)
+    mcc = mc_control.MonteCarloControl_ES_FirstVisit(stats, disk_path)
     if stats_from_disk == True:
         # load the optimal policy and action value function for the episodes
         stats = mcc.load_stats()
     else:
         # load the deterministic policy, initialized at HIT20
-        mce = mc_episodes.MonteCarloInit(stats)
-        # pi = mce.init_pi_of_s(PLAYER_STICKS_AT)
+        mce = mc_episodes.MonteCarloEpisodes(stats, disk_path)
         
         # compute the episodes with exploring starts    
         mce.start_compute(commit_to_disk=False)
@@ -86,16 +88,18 @@ def compute_control_ES(num_episodes: int, stats_from_disk: bool=True):
                  bjstats.MCControlESStats.COL_HAS_USABLE_ACE,
                  bjstats.MCControlESStats.COL_V_OF_S]])  
     
-def compute_control_on_policy(num_episodes: int, stats_from_disk=True):
-    stats = bjstats.MCControlOnPolicyStats()
+def compute_control_on_policy(num_episodes: int, epsilon: float=None, stats_from_disk: bool=True, disk_path: str=None):
+    if disk_path == None: disk_path = DIR_ABS_PATH
+    if epsilon == None: epsilon = EPSILON
+    stats = bjstats.MCControlOnPolicyStats(epsilon)
     
-    mcc = mc_control.MonteCarloControl_OnP_FirstVisit(stats)
+    mcc = mc_control.MonteCarloControl_OnP_FirstVisit(stats, epsilon, disk_path)
     if stats_from_disk == True:
         # load the optimal policy and action value function for the episodes
         stats = mcc.load_stats()
     else:        
         # load the stochastic policy, initialized at epsilon-soft HIT20
-        mce = mc_episodes.MonteCarloInit(stats)
+        mce = mc_episodes.MonteCarloEpisodes(stats, disk_path)
         # pi = mce.init_pi_of_s_and_a(PLAYER_STICKS_AT)
         
         # compute the episodes with exploring starts    
@@ -114,11 +118,11 @@ def compute_control_on_policy(num_episodes: int, stats_from_disk=True):
         pb.update(100)
     
     # plot the policy (stochastic)
-    plot_pi(mcc.stats.get_pis()[:, bjstats.MCControlOnPolicyStats.COL_CARD_SUM,
+    plot_pi(mcc.stats.get_pis()[:, [bjstats.MCControlOnPolicyStats.COL_CARD_SUM,
                  bjstats.MCControlOnPolicyStats.COL_UPCARD,
                  bjstats.MCControlOnPolicyStats.COL_HAS_USABLE_ACE,
                  bjstats.MCControlOnPolicyStats.COL_A,
-                 bjstats.MCControlOnPolicyStats.COL_PI_OF_S_A])
+                 bjstats.MCControlOnPolicyStats.COL_PI_OF_S_A]])
     
 def plot_v(v: np.ndarray):
     v = np.unique(v, axis=0)
@@ -160,12 +164,12 @@ def plot_pi(pi: np.ndarray):
         c_cs, c_uc, c_hua, c_a, c_p = 0, 1, 2, 3, 4
         
         # plot data for has_usable_ace = 1
-        pi1 = pi[(pi[c_p] > .5) and (pi[c_hua].astype(int) == 1), (c_cs, c_uc, c_a)]
+        pi1 = pi[np.ix_((pi[:, c_p].astype(float) > .5) & (pi[:, c_hua].astype(int) == 1), (c_cs, c_uc, c_a))]
         assert pi1.shape[0]*4 == pi.shape[0]
         _plot_pi(pi1)
         
         # plot data for has_usable_ace = 0
-        pi0 = pi[(pi[c_p] > .5) and (pi[c_hua].astype(int) == 1), (c_cs, c_uc, c_a)]
+        pi0 = pi[np.ix_((pi[:, c_p].astype(float) > .5) & (pi[:, c_hua].astype(int) == 0), (c_cs, c_uc, c_a))]
         assert pi0.shape[0]*4 == pi.shape[0]
         _plot_pi(pi0)
         
@@ -185,6 +189,6 @@ if __name__ == "__main__":
     # set the number of episodes (= Blackjack games) to be simulated.
     num_episodes = 500000
 
-    #compute_prediction(num_episodes, episodes_from_disk=False, stats_from_disk=False)
-    #compute_control_ES(num_episodes, stats_from_disk=True)
-    compute_control_on_policy(num_episodes, stats_from_disk=False)
+    compute_prediction(num_episodes, episodes_from_disk=False, stats_from_disk=False)
+    compute_control_ES(num_episodes, stats_from_disk=False)
+    compute_control_on_policy(num_episodes, EPSILON, stats_from_disk=False)

@@ -3,7 +3,7 @@ import os
 
 from .common import get_all_states, pickle, unpickle
 from .constants import GAMMA
-from .constants import DIR_ABS_PATH, DIR_REL_PATH_PRED, PICKLE_FILE_NAME_STATS
+from .constants import DIR_REL_PATH_PRED, PICKLE_FILE_NAME_STATS
 from .stats import Stats
 
 
@@ -11,12 +11,12 @@ class MonteCarloPrediction():
     """
     Implements fixed-policy (HIT20) estimation for the state value function using Monte Carlo ES.
     """
-    def __init__(self, stats: Stats):
-        self.file_name_stats = self._get_file_path()
+    def __init__(self, stats: Stats, disk_path: str):
+        self.file_name_stats = self._get_file_path(disk_path)
         self.stats = stats
 
-    def _get_file_path(self) -> str:
-        rel_path = os.path.join(DIR_ABS_PATH, DIR_REL_PATH_PRED)
+    def _get_file_path(self, disk_path: str) -> str:
+        rel_path = os.path.join(disk_path, DIR_REL_PATH_PRED)
         return os.path.join(rel_path, PICKLE_FILE_NAME_STATS)
         
     def load_stats(self) -> np.ndarray:
