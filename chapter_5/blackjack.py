@@ -7,39 +7,39 @@ import time
 from Blackjack.card import Card
 from Blackjack.constants import MAX_CARD_SUM, MIN_CARD_SUM, PLAYER_STICKS_AT
 from Blackjack import game
-from Blackjack import mc_control, mc_init, mc_prediction
+from Blackjack import mc_control, mc_episodes, mc_prediction
 from Blackjack import plot
 from Blackjack import stats as bjstats
 
 
 def compute_prediction(num_episodes: int, episodes_from_disk: bool=True, stats_from_disk: bool=True):
-    assert not(episodes_from_disk == False and v_from_disk == True)
+    assert not(episodes_from_disk == False and stats_from_disk == True)
     
     stats = bjstats.MCPredictionStats()
     # compute or load the episodes with fixed r/o policy HIT20
-    mci = mc_init.MonteCarloInit(stats)
+    mce = mc_episodes.MonteCarloInit(stats)
     if episodes_from_disk == True:
-        episodes = mci.load_episodes()  
+        episodes = mce.load_episodes()  
     else:
-        # pi = mci.init_pi_of_s(PLAYER_STICKS_AT)
-        mci.start_compute(commit_to_disk=True)
+        # pi = mce.init_pi_of_s(PLAYER_STICKS_AT)
+        mce.start_compute(commit_to_disk=True)
         episodes = [None]*num_episodes
         pb = ProgressBar().start()
         for i in range(num_episodes):
-            episodes[i] = mci.compute_episode()
+            episodes[i] = mce.compute_episode()
             pb.update(int(i / num_episodes * 100))
-        mci.end_compute()
+        mce.end_compute()
         pb.update(100)
 
     # estimate or load the state value function for the episodes
     mcp = mc_prediction.MonteCarloPrediction(stats)
     if stats_from_disk == True:
-        mcp.load_stats()
+        stats = mcp.load_stats()
     else:
         mcp.compute_v(episodes)
 
     # plot the value function
-    plot_v(v[:, [bjstats.MCPredictionStats.COL_CARD_SUM, 
+    plot_v(mcp.stats.get_vs()[:, [bjstats.MCPredictionStats.COL_CARD_SUM, 
                  bjstats.MCPredictionStats.COL_UPCARD,
                  bjstats.MCPredictionStats.COL_HAS_USABLE_ACE,
                  bjstats.MCPredictionStats.COL_V_OF_S]]) 
@@ -53,21 +53,21 @@ def compute_control_ES(num_episodes: int, stats_from_disk: bool=True):
         stats = mcc.load_stats()
     else:
         # load the deterministic policy, initialized at HIT20
-        mci = mc_init.MonteCarloInit(stats)
-        # pi = mci.init_pi_of_s(PLAYER_STICKS_AT)
+        mce = mc_episodes.MonteCarloInit(stats)
+        # pi = mce.init_pi_of_s(PLAYER_STICKS_AT)
         
         # compute the episodes with exploring starts    
-        mci.start_compute(commit_to_disk=False)
+        mce.start_compute(commit_to_disk=False)
         mcc.start_compute()
         pb = ProgressBar().start()
         for i in range(num_episodes):
             # source an episode
-            episode = mci.compute_episode()
+            episode = mce.compute_episode()
             
             # update the optimal policy and action value function for the episode
             mcc.compute_episode(episode)
             pb.update(int(i / num_episodes * 100))
-        mci.end_compute()
+        mce.end_compute()
         mcc.end_compute()
         pb.update(100)
             
@@ -95,21 +95,21 @@ def compute_control_on_policy(num_episodes: int, stats_from_disk=True):
         stats = mcc.load_stats()
     else:        
         # load the stochastic policy, initialized at epsilon-soft HIT20
-        mci = mc_init.MonteCarloInit(stats)
-        # pi = mci.init_pi_of_s_and_a(PLAYER_STICKS_AT)
+        mce = mc_episodes.MonteCarloInit(stats)
+        # pi = mce.init_pi_of_s_and_a(PLAYER_STICKS_AT)
         
         # compute the episodes with exploring starts    
-        mci.start_compute(commit_to_disk=False)
+        mce.start_compute(commit_to_disk=False)
         mcc.start_compute()
         pb = ProgressBar().start()
         for i in range(num_episodes):
             # source an episode
-            episode = mci.compute_episode()
+            episode = mce.compute_episode()
             
             # update the optimal policy and action value function for the episode
             mcc.compute_episode(episode)
             pb.update(int(i / num_episodes * 100))
-        mci.end_compute()
+        mce.end_compute()
         mcc.end_compute()
         pb.update(100)
     
@@ -185,6 +185,6 @@ if __name__ == "__main__":
     # set the number of episodes (= Blackjack games) to be simulated.
     num_episodes = 500000
 
-    compute_prediction(num_episodes, episodes_from_disk=True, stats_from_disk=False)
-    #compute_control_ES(num_episodes, stats_from_disk=False)
+    #compute_prediction(num_episodes, episodes_from_disk=False, stats_from_disk=False)
+    compute_control_ES(num_episodes, stats_from_disk=False)
     #compute_control_on_policy(num_episodes, stats_from_disk=False)

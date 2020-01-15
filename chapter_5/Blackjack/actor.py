@@ -85,8 +85,8 @@ class Player(Actor):
         super().__init__()
         self._policy = np.array([])
     
-    def set_policy(self, pi):
-        self._policy = pi
+    def set_policy(self, stats: np.ndarray):
+        self._policy = stats
     
     def take_turn(self) -> Action:
         assert self._policy.size != 0
@@ -95,9 +95,9 @@ class Player(Actor):
         d_upcard_value = self.dealer.cards.upcard.card_value()
         p_has_usable_ace = 1 if self.cards.has_usable_ace else 0
         actions = self._policy[
-            (self._policy[:, 0] == p_card_sum) & \
-            (self._policy[:, 1] == d_upcard_value) & \
-            (self._policy[:, 2] == p_has_usable_ace)]
+            (self._policy[:, Stats.COL_CARD_SUM] == p_card_sum) & \
+            (self._policy[:, Stats.COL_UPCARD] == d_upcard_value) & \
+            (self._policy[:, Stats.COL_HAS_USABLE_ACE] == p_has_usable_ace)]
         if len(actions) == 1: # deterministic policy pi(s), no duplicates
             action = Action.Hit if actions[0][MCPredictionStats.COL_PI_OF_S] == Action.Hit.value else Action.Stick
         else: # stochastic policy pi(a|s), no duplicates

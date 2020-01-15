@@ -130,9 +130,9 @@ class Game():
                     
         return reward, g_state[0], what_next
         
-    def play(self, pi: np.ndarray) -> (GameState, Playback.Episode):
+    def play(self, stats: np.ndarray) -> (GameState, Playback.Episode):
         self.dealer.set_deck()
-        self.player.set_policy(pi)
+        self.player.set_policy(stats)
         self._playback.start_episode()
         self._init()
         

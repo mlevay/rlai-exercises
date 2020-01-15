@@ -27,7 +27,11 @@ class MonteCarloControl(object, metaclass=ABCMeta):
         """
         Loads and returns the stats from disk, or None if they doesn't exist.
         """
-        return unpickle(self.file_name_stats)
+        stats = unpickle(self.file_name_stats)
+        assert stats is not None
+        
+        self.stats._set_stats(stats)
+        return stats
     
     def save_stats(self, stats: np.ndarray):
         """

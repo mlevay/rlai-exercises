@@ -78,34 +78,7 @@ class MonteCarloInit():
             rel_path = os.path.join(DIR_ABS_PATH, DIR_REL_PATH_CTRL)
         stats_file_path = os.path.join(rel_path, PICKLE_FILE_NAME_STATS)
         
-        return eps_file_path, stats_file_path   
-    
-    # def init_pi_of_s(self, player_sticks_at) -> np.ndarray:
-    #     """
-    #     Creates and returns a new policy function for the specified policy choice.
-    #     """
-    #     all_states = get_all_states()
-        
-    #     pi = np.zeros((len(all_states), 4), dtype=int)
-    #     pi[:, :-1] = all_states
-    #     pi[:, -1] = (pi[:, 0] < player_sticks_at).astype(int)
-
-    #     return pi 
-    
-    # def init_pi_of_s_and_a(self, player_sticks_at) -> np.ndarray:
-    #     """
-    #     Creates and returns a new policy function for the specified policy choice.
-    #     """
-    #     all_states_and_actions = get_all_states_and_actions()
-        
-    #     pi = np.zeros((len(all_states_and_actions), 5), dtype=float)
-    #     pi[:, :-1] = all_states_and_actions
-    #     pi[(pi[:, 0].astype(int) < player_sticks_at) & (pi[:, 3] == 1), -1] = 1 - EPSILON
-    #     pi[(pi[:, 0].astype(int) >= player_sticks_at) & (pi[:, 3] == 1), -1] = EPSILON
-    #     pi[(pi[:, 0].astype(int) < player_sticks_at) & (pi[:, 3] == 0), -1] = EPSILON
-    #     pi[(pi[:, 0].astype(int) >= player_sticks_at) & (pi[:, 3] == 0), -1] = 1 - EPSILON
-
-    #     return pi
+        return eps_file_path, stats_file_path
 
     def start_compute(self, commit_to_disk: bool=False):
         self.commit_to_disk = commit_to_disk
@@ -113,8 +86,8 @@ class MonteCarloInit():
         self.playback = Playback(self.stats)
         self.game = Game(self.playback, exploring_starts=self.exploring_starts)
         
-    def _play_one_game(self, pi: np.ndarray) -> Playback.Episode:
-        outcome, episode = self.game.play(pi)
+    def _play_one_game(self, stats: np.ndarray) -> Playback.Episode:
+        outcome, episode = self.game.play(stats)
 
         if VERBOSE == True:
             print("Game outcome: {}".format(str(outcome).split(".")[-1]))
@@ -132,7 +105,7 @@ class MonteCarloInit():
         """
         Computes and returns a single episode (=Blackjack game) with the given policy.
         """
-        episode = self._play_one_game(pi)
+        episode = self._play_one_game(self.stats.get_stats())
         
         if VERBOSE == True:
             print("Episode:")
@@ -147,9 +120,10 @@ class MonteCarloInit():
         return episode
     
     def end_compute(self):
-        if self.exploring_starts == True:
+        if self.exploring_starts == True and VERBOSE == True:
             print("Stats:")
-            for sa_c in self.stats._stats:
+            stats = np.unique(self.stats._stats, axis=0)
+            for sa_c in stats:
                 print("state=[{}, {}, {}], action={}, count={}".format(
                     sa_c[self.cols["cs"]], sa_c[self.cols["uc"]], sa_c[self.cols["hua"]], \
                     sa_c[self.cols["a"]], sa_c[self.cols["sv_count"]]))

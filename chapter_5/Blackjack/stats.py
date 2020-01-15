@@ -339,9 +339,7 @@ class MCPredictionStats(Stats):
         return self._get_stats(state=s)
     
     def get_vs(self):
-        return self._get_stats()[:, [
-            Stats.COL_CARD_SUM, Stats.COL_UPCARD, Stats.COL_HAS_USABLE_ACE, 
-            MCPredictionStats.COL_V_OF_S]]
+        return self._get_stats()[:, [:4]]
     
     def get_v(self, card_sum: int, upcard: Union[Card, int], 
               has_usable_ace: Union[bool, int]) -> float:
@@ -407,7 +405,7 @@ class MCControlESStats(Stats):
         return self._get_stats()[:, self._cols[:9]]
     
     def get_qs(self):
-        return self._get_stats()[:, self._cols[7]]
+        return self._get_stats()[:, self._cols[:5]]
         
     def get_q(self, card_sum: int, upcard: Union[Card, int], 
               has_usable_ace: Union[bool, int], action: Union[Action, int]) -> float:
@@ -514,6 +512,12 @@ class MCControlOnPolicyStats(Stats):
                   action: Union[Action, int]=None) -> np.ndarray:
         s, a = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action=action)
         return self._get_stats(s, a, MCControlOnPolicyStats.COL_A)
+    
+    def get_pis(self):
+        return self._get_stats()[:, self._cols[:6]]
+    
+    def get_qs(self):
+        return self._get_stats()[:, self._cols[:5]]
         
     def get_q(self, state: State, action: Union[Action, int]) -> float:
         s, a = self._resolve_state_and_action(card_sum, upcard, has_usable_ace, action=action)
